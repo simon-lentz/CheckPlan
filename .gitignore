@@ -1,6 +1,8 @@
 # Miscellaneous
 *.class
 *.lock
+# Commit the application lockfile for reproducible installs (overrides *.lock).
+!pubspec.lock
 *.log
 *.pyc
 *.swp
