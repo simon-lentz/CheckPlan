@@ -1,0 +1,20 @@
+# Git hooks managed by lefthook.
+#
+# Activate once per clone:
+#   flutter pub global activate lefthook_dart   # provides the `lefthook` command
+#   lefthook install                            # writes hooks into .git/hooks
+# (A system install such as `brew install lefthook` works too.)
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.dart"
+      run: dart format {staged_files} && git add {staged_files}
+
+pre-push:
+  parallel: true
+  commands:
+    analyze:
+      run: flutter analyze
+    test:
+      run: flutter test

@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: "pub" # Dart/Flutter — natively supported
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups: # consolidate bumps into fewer PRs
+      production:
+        dependency-type: "production"
+      dev:
+        dependency-type: "development"
+  - package-ecosystem: "github-actions" # keep CI actions patched
+    directory: "/"
+    schedule:
+      interval: "weekly"

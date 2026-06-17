@@ -33,5 +33,10 @@ jobs:
       - name: Test
         # Generates coverage/lcov.info for the coverage gate.
         run: flutter test --coverage
+      - name: Coverage gate
+        uses: VeryGoodOpenSource/very_good_coverage@v3
+        with:
+          path: coverage/lcov.info
+          min_coverage: 92
       - name: Build web
         run: flutter build web
