@@ -14,8 +14,20 @@ permissions:
   contents: read
 
 jobs:
-  scan:
+  # On pull requests: the PR-diff scanner, which compares base vs head and
+  # reports only vulnerabilities the PR introduces. It needs PR context
+  # (GITHUB_BASE_REF / the PR number), so it must not run on push or schedule.
+  scan-pr:
+    if: github.event_name == 'pull_request'
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@v2.3.8
+    with:
+      scan-args: |-
+        --lockfile=./pubspec.lock
+
+  # On push to main and the weekly schedule: the full scanner (no PR context).
+  scan:
+    if: github.event_name != 'pull_request'
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
     with:
       scan-args: |-
         --lockfile=./pubspec.lock
