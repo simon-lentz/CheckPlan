@@ -123,6 +123,7 @@ app.*.symbols
 
 # Dev documents
 docs/
+lib/_scratch/
 
 # Exceptions to above rules.
 !**/ios/**/default.mode1v3
