@@ -77,4 +77,55 @@ void main() {
     final buckets = await tasks.watchTodayBuckets(today).first;
     expect(buckets.dueToday.single.checklistTitle, 'Errands');
   });
+
+  test('edit updates title and notes, then clears notes with null', () async {
+    final list = await checklists.create('List');
+    final id = await tasks.add(list, 'original');
+
+    await tasks.edit(id, title: 'renamed', notes: 'some notes');
+    final edited = (await tasks.watchForChecklist(list).first).single;
+    expect(edited.task.title, 'renamed');
+    expect(edited.task.notes, 'some notes');
+
+    // Omitting notes passes null: edit is a full write, so this clears them.
+    await tasks.edit(id, title: 'renamed again');
+    final cleared = (await tasks.watchForChecklist(list).first).single;
+    expect(cleared.task.title, 'renamed again');
+    expect(cleared.task.notes, isNull);
+  });
+
+  test('reorder rewrites task positions within the checklist', () async {
+    final list = await checklists.create('List');
+    final a = await tasks.add(list, 'a');
+    final b = await tasks.add(list, 'b');
+    final c = await tasks.add(list, 'c');
+    await tasks.reorder(list, [c, a, b]);
+
+    final titles = (await tasks.watchForChecklist(list).first)
+        .map((view) => view.task.title)
+        .toList();
+    expect(titles, ['c', 'a', 'b']);
+  });
+
+  test(
+    'Today excludes tasks in archived checklists; restore brings them back',
+    () async {
+      final list = await checklists.create('List');
+      final today = day(2026, 6, 18);
+      final t = await tasks.add(list, 'due today');
+      await tasks.setDueDate(t, today);
+
+      var buckets = await tasks.watchTodayBuckets(today).first;
+      expect(buckets.dueToday.map((e) => e.task.title), ['due today']);
+
+      await checklists.archive(list);
+      buckets = await tasks.watchTodayBuckets(today).first;
+      expect(buckets.overdue, isEmpty);
+      expect(buckets.dueToday, isEmpty);
+
+      await checklists.restore(list);
+      buckets = await tasks.watchTodayBuckets(today).first;
+      expect(buckets.dueToday.map((e) => e.task.title), ['due today']);
+    },
+  );
 }

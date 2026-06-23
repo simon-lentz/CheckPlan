@@ -1,4 +1,5 @@
 import 'package:checkplan/core/database/app_database.dart';
+import 'package:checkplan/core/database/dao_support.dart';
 import 'package:checkplan/core/database/summaries.dart';
 import 'package:checkplan/core/database/tables/checklists.dart';
 import 'package:checkplan/core/database/tables/subtasks.dart';
@@ -10,57 +11,73 @@ part 'task_dao.g.dart';
 
 /// Reads and writes tasks, exposing reactive checklist and Today views.
 @DriftAccessor(tables: [Tasks, Subtasks, Checklists])
-class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
+class TaskDao extends DatabaseAccessor<AppDatabase>
+    with _$TaskDaoMixin, PositioningDao {
   /// Binds the DAO to its attached database.
   TaskDao(super.attachedDatabase);
 
-  /// A checklist's tasks ordered by position, each with subtask
-  /// `(done, total)` counts.
+  /// A checklist's tasks ordered by `position` (id as a stable tiebreaker),
+  /// each with subtask `(done, total)` counts.
   Stream<List<TaskView>> watchForChecklist(int checklistId) {
-    final total = subtasks.id.count();
-    final done = subtasks.id.count(filter: subtasks.isDone.equals(true));
-    final query =
-        select(tasks).join([
-            // useColumns: false — read the counts, not the joined rows.
-            leftOuterJoin(
-              subtasks,
-              subtasks.taskId.equalsExp(tasks.id),
-              useColumns: false,
-            ),
-          ])
-          ..addColumns([total, done])
-          ..where(tasks.checklistId.equals(checklistId))
-          ..groupBy([tasks.id])
-          ..orderBy([OrderingTerm(expression: tasks.position)]);
+    final query = select(tasks).join([
+      // useColumns: false — read the counts, not the joined rows.
+      leftOuterJoin(
+        subtasks,
+        subtasks.taskId.equalsExp(tasks.id),
+        useColumns: false,
+      ),
+    ]);
+    final readProgress = addProgressCounts(query, subtasks.id, subtasks.isDone);
+    query
+      ..where(tasks.checklistId.equals(checklistId))
+      ..groupBy([tasks.id])
+      ..orderBy([
+        OrderingTerm(expression: tasks.position),
+        OrderingTerm(expression: tasks.id),
+      ]);
 
     return query.watch().map(
       (rows) => rows
           .map(
             (row) => TaskView(
               task: row.readTable(tasks),
-              subtaskProgress: (row.read(done) ?? 0, row.read(total) ?? 0),
+              subtaskProgress: readProgress(row),
             ),
           )
           .toList(),
     );
   }
 
-  /// Incomplete tasks due on or before `today`, partitioned into overdue
-  /// (`dueDay < today`) and due-today (`dueDay == today`).
+  /// Incomplete tasks in non-archived checklists due on or before `today`,
+  /// partitioned into overdue (`dueDay < today`) and due-today
+  /// (`dueDay == today`).
   ///
-  /// `today` is a timezone-free [EpochDay], so the comparison is exact
-  /// integer arithmetic.
+  /// `today` must be the device's **local** calendar day as an [EpochDay] (the
+  /// value `currentDayProvider` produces); stored `dueDay`s are also local
+  /// calendar days, so the comparison is exact integer arithmetic. Tasks in
+  /// archived checklists are excluded — an archived list is hidden everywhere,
+  /// Today included.
   Stream<TodayBuckets> watchTodayBuckets(EpochDay today) {
     final query =
         select(tasks).join([
-            innerJoin(checklists, checklists.id.equalsExp(tasks.checklistId)),
+            // useColumns: false — only the checklist title is needed.
+            innerJoin(
+              checklists,
+              checklists.id.equalsExp(tasks.checklistId),
+              useColumns: false,
+            ),
           ])
+          ..addColumns([checklists.title])
           ..where(
             tasks.isDone.equals(false) &
                 tasks.dueDay.isNotNull() &
-                tasks.dueDay.isSmallerOrEqualValue(today.value),
+                tasks.dueDay.isSmallerOrEqualValue(today.value) &
+                checklists.archivedAt.isNull(),
           )
-          ..orderBy([OrderingTerm(expression: tasks.dueDay)]);
+          ..orderBy([
+            OrderingTerm(expression: tasks.dueDay),
+            OrderingTerm(expression: tasks.id),
+          ]);
 
     return query.watch().map((rows) {
       final overdue = <TodayTask>[];
@@ -69,7 +86,8 @@ class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
         final task = row.readTable(tasks);
         final entry = TodayTask(
           task: task,
-          checklistTitle: row.readTable(checklists).title,
+          // Non-null: inner join on a NOT NULL column.
+          checklistTitle: row.read(checklists.title)!,
         );
         // dueDay is non-null here (guarded by the WHERE above).
         if (task.dueDay! < today.value) {
@@ -93,7 +111,11 @@ class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
         TasksCompanion.insert(
           checklistId: checklistId,
           title: title,
-          position: await _nextPosition(checklistId),
+          position: await nextPosition(
+            tasks,
+            tasks.position.max(),
+            where: tasks.checklistId.equals(checklistId),
+          ),
           createdAt: now,
           updatedAt: now,
         ),
@@ -137,26 +159,15 @@ class TaskDao extends DatabaseAccessor<AppDatabase> with _$TaskDaoMixin {
       (delete(tasks)..where((t) => t.id.equals(id))).go();
 
   /// Rewrites positions within a checklist to match the given id order.
-  Future<void> reorder(int checklistId, List<int> orderedIds) {
-    final now = DateTime.timestamp();
-    return batch((b) {
-      for (final (index, id) in orderedIds.indexed) {
-        b.update(
-          tasks,
-          TasksCompanion(position: Value(index), updatedAt: Value(now)),
-          // Scope to the owning checklist: a stray foreign id can't be moved.
-          where: (t) => t.id.equals(id) & t.checklistId.equals(checklistId),
-        );
-      }
-    });
-  }
-
-  Future<int> _nextPosition(int checklistId) async {
-    final maxPosition = tasks.position.max();
-    final query = selectOnly(tasks)
-      ..addColumns([maxPosition])
-      ..where(tasks.checklistId.equals(checklistId));
-    final row = await query.getSingleOrNull();
-    return (row?.read(maxPosition) ?? -1) + 1;
-  }
+  ///
+  /// [orderedIds] must be the full set of task ids in [checklistId].
+  Future<void> reorder(int checklistId, List<int> orderedIds) =>
+      reorderByPosition(
+        tasks,
+        orderedIds: orderedIds,
+        idColumn: tasks.id,
+        rowFor: (index, now) =>
+            TasksCompanion(position: Value(index), updatedAt: Value(now)),
+        scope: tasks.checklistId.equals(checklistId),
+      );
 }

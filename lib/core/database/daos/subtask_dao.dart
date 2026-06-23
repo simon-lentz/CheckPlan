@@ -1,4 +1,5 @@
 import 'package:checkplan/core/database/app_database.dart';
+import 'package:checkplan/core/database/dao_support.dart';
 import 'package:checkplan/core/database/tables/subtasks.dart';
 import 'package:drift/drift.dart';
 
@@ -6,15 +7,20 @@ part 'subtask_dao.g.dart';
 
 /// Reads and writes subtasks, exposing a reactive per-task list.
 @DriftAccessor(tables: [Subtasks])
-class SubtaskDao extends DatabaseAccessor<AppDatabase> with _$SubtaskDaoMixin {
+class SubtaskDao extends DatabaseAccessor<AppDatabase>
+    with _$SubtaskDaoMixin, PositioningDao {
   /// Binds the DAO to its attached database.
   SubtaskDao(super.attachedDatabase);
 
-  /// A task's subtasks ordered by position; re-emits on any change.
+  /// A task's subtasks ordered by `position` (id as a stable tiebreaker);
+  /// re-emits on any change.
   Stream<List<Subtask>> watchForTask(int taskId) {
     return (select(subtasks)
           ..where((s) => s.taskId.equals(taskId))
-          ..orderBy([(s) => OrderingTerm(expression: s.position)]))
+          ..orderBy([
+            (s) => OrderingTerm(expression: s.position),
+            (s) => OrderingTerm(expression: s.id),
+          ]))
         .watch();
   }
 
@@ -29,7 +35,11 @@ class SubtaskDao extends DatabaseAccessor<AppDatabase> with _$SubtaskDaoMixin {
         SubtasksCompanion.insert(
           taskId: taskId,
           title: title,
-          position: await _nextPosition(taskId),
+          position: await nextPosition(
+            subtasks,
+            subtasks.position.max(),
+            where: subtasks.taskId.equals(taskId),
+          ),
           createdAt: now,
           updatedAt: now,
         ),
@@ -60,26 +70,14 @@ class SubtaskDao extends DatabaseAccessor<AppDatabase> with _$SubtaskDaoMixin {
       (delete(subtasks)..where((s) => s.id.equals(id))).go();
 
   /// Rewrites positions within a task to match the given id order.
-  Future<void> reorder(int taskId, List<int> orderedIds) {
-    final now = DateTime.timestamp();
-    return batch((b) {
-      for (final (index, id) in orderedIds.indexed) {
-        b.update(
-          subtasks,
-          SubtasksCompanion(position: Value(index), updatedAt: Value(now)),
-          // Scope to the owning task: a stray foreign id can't be moved.
-          where: (s) => s.id.equals(id) & s.taskId.equals(taskId),
-        );
-      }
-    });
-  }
-
-  Future<int> _nextPosition(int taskId) async {
-    final maxPosition = subtasks.position.max();
-    final query = selectOnly(subtasks)
-      ..addColumns([maxPosition])
-      ..where(subtasks.taskId.equals(taskId));
-    final row = await query.getSingleOrNull();
-    return (row?.read(maxPosition) ?? -1) + 1;
-  }
+  ///
+  /// [orderedIds] must be the full set of subtask ids in [taskId].
+  Future<void> reorder(int taskId, List<int> orderedIds) => reorderByPosition(
+    subtasks,
+    orderedIds: orderedIds,
+    idColumn: subtasks.id,
+    rowFor: (index, now) =>
+        SubtasksCompanion(position: Value(index), updatedAt: Value(now)),
+    scope: subtasks.taskId.equals(taskId),
+  );
 }

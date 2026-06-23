@@ -131,4 +131,34 @@ void main() {
 
     expect(await db.select(db.tasks).get(), isEmpty);
   });
+
+  test('reorder rejects a partial id set (debug contract check)', () async {
+    final a = await dao.create('A');
+    await dao.create('B');
+    await dao.create('C');
+    // Omitting B and C would leave them colliding on stale positions.
+    await expectLater(dao.reorder([a]), throwsStateError);
+  });
+
+  test(
+    'restore re-slots position so it cannot collide after a reorder',
+    () async {
+      final keep = await dao.create('keep'); // position 0
+      final gone = await dao.create('gone'); // position 1
+      await dao.archive(gone);
+      await dao.reorder([keep]); // keep -> 0; gone keeps stale 1 while archived
+      await dao.restore(gone); // must move to the tail, not tie keep at 0
+
+      final summaries = await dao.watchActiveSummaries().first;
+      final positions = summaries.map((s) => s.checklist.position).toList();
+      expect(
+        positions.toSet().length,
+        summaries.length,
+      ); // all positions unique
+      expect(
+        summaries.map((s) => s.checklist.title),
+        ['keep', 'gone'],
+      ); // deterministic order
+    },
+  );
 }

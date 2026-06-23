@@ -65,4 +65,37 @@ void main() {
     await tasks.deleteById(task);
     expect(await db.select(db.subtasks).get(), isEmpty);
   });
+
+  test('rename changes the subtask title', () async {
+    final task = await seedTask();
+    final id = await subtasks.add(task, 'old');
+    await subtasks.rename(id, 'new');
+
+    expect((await subtasks.watchForTask(task).first).single.title, 'new');
+  });
+
+  test('deleteById removes only the targeted subtask', () async {
+    final task = await seedTask();
+    await subtasks.add(task, 'keep');
+    final doomed = await subtasks.add(task, 'remove');
+    await subtasks.deleteById(doomed);
+
+    final titles = (await subtasks.watchForTask(task).first)
+        .map((subtask) => subtask.title)
+        .toList();
+    expect(titles, ['keep']);
+  });
+
+  test('reorder rewrites subtask positions within the task', () async {
+    final task = await seedTask();
+    final a = await subtasks.add(task, 'a');
+    final b = await subtasks.add(task, 'b');
+    final c = await subtasks.add(task, 'c');
+    await subtasks.reorder(task, [c, a, b]);
+
+    final titles = (await subtasks.watchForTask(task).first)
+        .map((subtask) => subtask.title)
+        .toList();
+    expect(titles, ['c', 'a', 'b']);
+  });
 }
