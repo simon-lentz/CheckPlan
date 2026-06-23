@@ -1258,25 +1258,25 @@ class $SubtasksTable extends Subtasks with TableInfo<$SubtasksTable, Subtask> {
 }
 
 class Subtask extends DataClass implements Insertable<Subtask> {
-  /// Surrogate primary key.
+  /// Surrogate PK.
   final int id;
 
-  /// Owning task; deletes cascade to this subtask (requires the FK pragma).
+  /// Owning task.
   final int taskId;
 
-  /// Display title; trimmed and length-checked (1-200 chars).
+  /// Display title.
   final String title;
 
-  /// Whether the subtask is complete; defaults to false.
+  /// Subtask completion flag, defaults to false.
   final bool isDone;
 
-  /// Sort order within the owning task; rewritten as a block on reorder.
+  /// Sort order within the owning task.
   final int position;
 
-  /// Creation timestamp (UTC), stored as ISO-8601 text.
+  /// Creation timestamp.
   final DateTime createdAt;
 
-  /// Last-modified timestamp (UTC), stored as ISO-8601 text.
+  /// Last modified timestamp.
   final DateTime updatedAt;
   const Subtask({
     required this.id,
@@ -1534,6 +1534,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'subtask_task_order',
     'CREATE INDEX subtask_task_order ON subtasks (task_id, position)',
   );
+  late final ChecklistDao checklistDao = ChecklistDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

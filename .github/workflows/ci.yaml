@@ -45,9 +45,11 @@ jobs:
         uses: VeryGoodOpenSource/very_good_coverage@v3
         with:
           path: coverage/lcov.info
-          # Exclude committed-but-generated drift code: it's only partially
-          # exercised by focused DAO tests, so measuring it would sink coverage.
-          exclude: "**/*.g.dart"
+          # Exclude drift code that can't be meaningfully covered: the committed
+          # *.g.dart, and the declarative table classes — drift generates a
+          # $XTable that @override-shadows their column getters, so the getters
+          # never run at runtime and always report 0%.
+          exclude: "**/*.g.dart **/database/tables/*.dart"
           min_coverage: 92
       - name: Build web
         run: flutter build web
