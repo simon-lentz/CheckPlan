@@ -1,4 +1,5 @@
 import 'package:checkplan/core/database/daos/checklist_dao.dart';
+import 'package:checkplan/core/database/daos/subtask_dao.dart';
 import 'package:checkplan/core/database/daos/task_dao.dart';
 import 'package:checkplan/core/database/tables/checklists.dart';
 import 'package:checkplan/core/database/tables/subtasks.dart';
@@ -11,7 +12,7 @@ part 'app_database.g.dart';
 /// subtask tables and enables foreign-key cascades on every connection.
 @DriftDatabase(
   tables: [Checklists, Tasks, Subtasks],
-  daos: [ChecklistDao, TaskDao],
+  daos: [ChecklistDao, TaskDao, SubtaskDao],
 )
 class AppDatabase extends _$AppDatabase {
   /// Opens the database over the given executor (a native file in the app, an
