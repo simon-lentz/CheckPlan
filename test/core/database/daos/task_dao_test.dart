@@ -128,4 +128,13 @@ void main() {
       expect(buckets.dueToday.map((e) => e.task.title), ['due today']);
     },
   );
+
+  test('reorder rejects a partial id set', () async {
+    final list = await checklists.create('List');
+    final a = await tasks.add(list, 'a');
+    await tasks.add(list, 'b');
+    await tasks.add(list, 'c');
+    // Omitting b and c would leave them colliding on stale positions.
+    await expectLater(tasks.reorder(list, [a]), throwsStateError);
+  });
 }

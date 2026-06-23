@@ -11,10 +11,21 @@ void main() {
     expect(day(2026, 6, 19).value - day(2026, 6, 18).value, 1);
   });
 
-  test('toLocalDateTime round-trips to local midnight of the same day', () {
+  test('fromDateTime rejects a UTC DateTime', () {
+    // The civil date is read from the DateTime's components, so a UTC value
+    // would yield the UTC day, not the user's local one.
+    expect(
+      () => EpochDay.fromDateTime(DateTime.utc(2026, 6, 18)),
+      throwsA(isA<AssertionError>()),
+    );
+  });
+
+  test('toLocalDateTime yields local noon of the same day (DST-safe)', () {
     final back = day(2026, 6, 18).toLocalDateTime();
     expect((back.year, back.month, back.day), (2026, 6, 18));
-    expect((back.hour, back.minute), (0, 0));
+    // Noon, not midnight: a DST transition can skip local midnight (advancing
+    // it to 01:00 and risking date/time drift), but never local noon.
+    expect((back.hour, back.minute), (12, 0));
   });
 
   test('comparison and subtraction operators match calendar order', () {
@@ -22,5 +33,18 @@ void main() {
     expect(day(2026, 6, 18) < day(2026, 6, 18), isFalse);
     expect(day(2026, 6, 18) - day(2026, 6, 17), 1);
     expect(day(2026, 6, 1) - day(2026, 6, 18), -17);
+  });
+
+  test('<=, >, and >= match calendar order', () {
+    final earlier = day(2026, 6, 17);
+    final later = day(2026, 6, 18);
+    expect(earlier <= later, isTrue);
+    expect(later <= later, isTrue);
+    expect(later <= earlier, isFalse);
+    expect(later > earlier, isTrue);
+    expect(earlier > later, isFalse);
+    expect(later >= later, isTrue);
+    expect(later >= earlier, isTrue);
+    expect(earlier >= later, isFalse);
   });
 }

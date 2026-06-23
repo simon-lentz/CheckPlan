@@ -132,7 +132,7 @@ void main() {
     expect(await db.select(db.tasks).get(), isEmpty);
   });
 
-  test('reorder rejects a partial id set (debug contract check)', () async {
+  test('reorder rejects a partial id set', () async {
     final a = await dao.create('A');
     await dao.create('B');
     await dao.create('C');

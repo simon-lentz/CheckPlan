@@ -52,11 +52,10 @@ class TaskDao extends DatabaseAccessor<AppDatabase>
   /// partitioned into overdue (`dueDay < today`) and due-today
   /// (`dueDay == today`).
   ///
-  /// `today` must be the device's **local** calendar day as an [EpochDay] (the
-  /// value `currentDayProvider` produces); stored `dueDay`s are also local
-  /// calendar days, so the comparison is exact integer arithmetic. Tasks in
-  /// archived checklists are excluded — an archived list is hidden everywhere,
-  /// Today included.
+  /// `today` must be the device's current **local** calendar day as an
+  /// [EpochDay]; stored `dueDay`s are also local calendar days, so the
+  /// comparison is exact integer arithmetic. Tasks in archived checklists are
+  /// excluded — an archived list is hidden everywhere, Today included.
   Stream<TodayBuckets> watchTodayBuckets(EpochDay today) {
     final query =
         select(tasks).join([

@@ -98,4 +98,13 @@ void main() {
         .toList();
     expect(titles, ['c', 'a', 'b']);
   });
+
+  test('reorder rejects a partial id set', () async {
+    final task = await seedTask();
+    final a = await subtasks.add(task, 'a');
+    await subtasks.add(task, 'b');
+    await subtasks.add(task, 'c');
+    // Omitting b and c would leave them colliding on stale positions.
+    await expectLater(subtasks.reorder(task, [a]), throwsStateError);
+  });
 }

@@ -86,13 +86,15 @@ class ChecklistDao extends DatabaseAccessor<AppDatabase>
       );
 
   /// Archives the checklist, hiding it from the active list.
-  Future<int> archive(int id) =>
-      (update(checklists)..where((c) => c.id.equals(id))).write(
-        ChecklistsCompanion(
-          archivedAt: Value(DateTime.timestamp()),
-          updatedAt: Value(DateTime.timestamp()),
-        ),
-      );
+  Future<int> archive(int id) {
+    final now = DateTime.timestamp();
+    return (update(checklists)..where((c) => c.id.equals(id))).write(
+      ChecklistsCompanion(
+        archivedAt: Value(now),
+        updatedAt: Value(now),
+      ),
+    );
+  }
 
   /// Restores a previously archived checklist, re-appending it to the tail of
   /// the active order so its stale `position` cannot collide with one taken by

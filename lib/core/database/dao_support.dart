@@ -27,13 +27,15 @@ mixin PositioningDao on DatabaseAccessor<AppDatabase> {
   ///
   /// [orderedIds] must be the complete, duplicate-free id set for the scope: an
   /// omitted id would keep its stale `position` and collide with a freshly
-  /// assigned one. That contract is checked in debug builds (it reads the
-  /// scope's current ids and compares), so a partial or duplicated list throws
-  /// in tests rather than silently corrupting order; release builds skip it.
+  /// assigned one. The contract is enforced before the rewrite (it reads the
+  /// scope's current ids and throws a [StateError] on a partial or duplicated
+  /// list), so a malformed reorder fails loudly instead of silently scrambling
+  /// order. The check runs in every build, and throwing before the [batch]
+  /// keeps the rewrite atomic: nothing is written on a violation.
   ///
   /// [idColumn] is the table's primary-key column; [rowFor] builds the per-row
   /// companion (`position`/`updatedAt`); [scope] narrows the update and the
-  /// debug check to the orderable subset (e.g. one checklist, or only the
+  /// contract check to the orderable subset (e.g. one checklist, or only the
   /// non-archived checklists).
   Future<void> reorderByPosition<T extends Table, D>(
     TableInfo<T, D> table, {
@@ -42,23 +44,19 @@ mixin PositioningDao on DatabaseAccessor<AppDatabase> {
     required Insertable<D> Function(int index, DateTime now) rowFor,
     Expression<bool>? scope,
   }) async {
-    var debugCheck = false;
-    assert(debugCheck = true, 'enables the debug-only reorder contract check');
-    if (debugCheck) {
-      final idQuery = selectOnly(table)..addColumns([idColumn]);
-      if (scope != null) idQuery.where(scope);
-      final currentIds = (await idQuery.get())
-          .map((row) => row.read(idColumn)!)
-          .toSet();
-      final requestedIds = orderedIds.toSet();
-      if (requestedIds.length != orderedIds.length ||
-          requestedIds.length != currentIds.length ||
-          !requestedIds.containsAll(currentIds)) {
-        throw StateError(
-          'reorder expects the complete, duplicate-free id set for the scope; '
-          'got $orderedIds for current ids $currentIds',
-        );
-      }
+    final idQuery = selectOnly(table)..addColumns([idColumn]);
+    if (scope != null) idQuery.where(scope);
+    final currentIds = (await idQuery.get())
+        .map((row) => row.read(idColumn)!)
+        .toSet();
+    final requestedIds = orderedIds.toSet();
+    if (requestedIds.length != orderedIds.length ||
+        requestedIds.length != currentIds.length ||
+        !requestedIds.containsAll(currentIds)) {
+      throw StateError(
+        'reorder expects the complete, duplicate-free id set for the scope; '
+        'got $orderedIds for current ids $currentIds',
+      );
     }
 
     final now = DateTime.timestamp();
@@ -78,7 +76,7 @@ mixin PositioningDao on DatabaseAccessor<AppDatabase> {
 /// Adds child `(done, total)` count columns to [query] and returns a reader
 /// that maps a result row to its [Progress].
 ///
-/// `(0, 0)` ⇒ the parent has no children (design §3.3). Centralises the
+/// `(0, 0)` ⇒ the parent has no children. Centralises the
 /// progress rollup shared by the checklist- and task-summary queries: pass the
 /// child table's id and `isDone` columns, then call the returned reader on each
 /// joined result row.
