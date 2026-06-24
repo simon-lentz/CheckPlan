@@ -14,6 +14,7 @@ class ChecklistTile extends StatelessWidget {
     required this.onRecolour,
     required this.onArchive,
     required this.onDelete,
+    required this.onOpen,
     super.key,
   });
 
@@ -32,11 +33,15 @@ class ChecklistTile extends StatelessWidget {
   /// Invoked when the user chooses Delete.
   final VoidCallback onDelete;
 
+  /// Invoked when the user taps the row to open the checklist's detail.
+  final VoidCallback onOpen;
+
   @override
   Widget build(BuildContext context) {
     final (done, total) = summary.progress;
     final colorValue = summary.checklist.colorValue;
     return ListTile(
+      onTap: onOpen,
       leading: CircleAvatar(
         backgroundColor: colorValue == null ? null : Color(colorValue),
       ),

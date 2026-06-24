@@ -5,6 +5,7 @@ import 'package:checkplan/features/checklists/presentation/widgets/checklist_nam
 import 'package:checkplan/features/checklists/presentation/widgets/checklist_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// The "Lists" home screen: a live, reactive list of the user's checklists.
 class ChecklistsScreen extends ConsumerWidget {
@@ -71,6 +72,7 @@ class _ChecklistList extends ConsumerWidget {
           onRecolour: () => _recolour(context, ref, summary.checklist.id),
           onArchive: () => _archive(context, ref, summary),
           onDelete: () => _delete(context, ref, summary),
+          onOpen: () => context.push('/checklist/${summary.checklist.id}'),
         );
       },
     );
