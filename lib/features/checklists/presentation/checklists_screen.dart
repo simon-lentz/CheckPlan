@@ -1,5 +1,7 @@
 import 'package:checkplan/core/database/summaries.dart';
+import 'package:checkplan/core/result.dart';
 import 'package:checkplan/features/checklists/application/checklist_providers.dart';
+import 'package:checkplan/features/checklists/presentation/widgets/checklist_name_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,6 +21,23 @@ class ChecklistsScreen extends ConsumerWidget {
         AsyncError(:final error) => _ErrorView(error: error),
         _ => const Center(child: CircularProgressIndicator()),
       },
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _createChecklist(context, ref),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+Future<void> _createChecklist(BuildContext context, WidgetRef ref) async {
+  final title = await showChecklistNameDialog(context);
+  if (title == null) return;
+  final result = await ref
+      .read(checklistControllerProvider.notifier)
+      .create(title);
+  if (context.mounted && result is Err<int>) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not create the checklist')),
     );
   }
 }
