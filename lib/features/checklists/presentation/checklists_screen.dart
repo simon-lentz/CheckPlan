@@ -51,8 +51,9 @@ class _ChecklistList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListView.builder(
+    return ReorderableListView.builder(
       itemCount: summaries.length,
+      onReorderItem: (oldIndex, newIndex) => _reorder(ref, oldIndex, newIndex),
       itemBuilder: (context, index) {
         final summary = summaries[index];
         return ChecklistTile(
@@ -65,6 +66,16 @@ class _ChecklistList extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _reorder(WidgetRef ref, int oldIndex, int newIndex) {
+    // onReorderItem already adjusts newIndex for the item removed at oldIndex,
+    // so insert at newIndex directly (the deprecated onReorder required a
+    // manual `newIndex > oldIndex ? newIndex - 1` shift).
+    final ids = summaries.map((s) => s.checklist.id).toList();
+    final moved = ids.removeAt(oldIndex);
+    ids.insert(newIndex, moved);
+    return ref.read(checklistControllerProvider.notifier).reorder(ids);
   }
 
   Future<void> _rename(
