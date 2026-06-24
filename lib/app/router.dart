@@ -1,11 +1,14 @@
 import 'package:checkplan/features/checklists/presentation/checklists_screen.dart';
 import 'package:go_router/go_router.dart';
 
-/// The app's router.
+/// Builds the app's router: a flat configuration with the Lists screen at the
+/// root.
 ///
-/// A flat configuration with the Lists screen at the root; it grows into a
-/// `StatefulShellRoute` bottom-nav shell in a later iteration.
-final GoRouter appRouter = GoRouter(
+/// Returns a fresh instance per call so each `CheckPlanApp` owns and disposes
+/// its own router instead of sharing a global; this also isolates widget tests
+/// that mount the app. It grows into a `StatefulShellRoute` bottom-nav shell in
+/// a later iteration.
+GoRouter createAppRouter() => GoRouter(
   routes: [
     GoRoute(path: '/', builder: (context, state) => const ChecklistsScreen()),
   ],
