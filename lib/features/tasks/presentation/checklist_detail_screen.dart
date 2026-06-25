@@ -26,7 +26,10 @@ class ChecklistDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(title)),
       body: switch (tasksAsync) {
         AsyncData(:final value) when value.isEmpty => const _EmptyTasks(),
-        AsyncData(:final value) => _TaskList(tasks: value),
+        AsyncData(:final value) => _TaskList(
+          tasks: value,
+          checklistId: checklistId,
+        ),
         AsyncError(:final error) => _ErrorView(error: error),
         _ => const Center(child: CircularProgressIndicator()),
       },
@@ -61,24 +64,109 @@ Future<void> _addTask(
 
 /// The non-empty list of task views.
 class _TaskList extends ConsumerWidget {
-  const _TaskList({required this.tasks});
+  const _TaskList({required this.tasks, required this.checklistId});
 
   final List<TaskView> tasks;
+  final int checklistId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ListView.builder(
+    return ReorderableListView.builder(
       itemCount: tasks.length,
+      onReorderItem: (oldIndex, newIndex) =>
+          _reorder(context, ref, oldIndex, newIndex),
       itemBuilder: (context, index) {
         final view = tasks[index];
-        return TaskTile(
-          key: ValueKey(view.task.id),
-          view: view,
-          onToggleDone: (isDone) =>
-              _toggle(context, ref, view.task.id, isDone: isDone),
+        return Dismissible(
+          key: ValueKey('dismiss-${view.task.id}'),
+          direction: DismissDirection.endToStart,
+          background: const ColoredBox(
+            color: Colors.red,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.only(right: 16),
+                child: Icon(Icons.delete, color: Colors.white),
+              ),
+            ),
+          ),
+          // Delete inside confirmDismiss and return false so the Dismissible
+          // never enters its dismissed state. On success the reactive stream
+          // removes the row; on failure it stays, with a snackbar. Returning
+          // true while the async delete and its re-emit are in flight would
+          // assert that a dismissed Dismissible is still in the tree.
+          confirmDismiss: (_) =>
+              _confirmAndDelete(context, ref, view.task.id, view.task.title),
+          child: TaskTile(
+            key: ValueKey(view.task.id),
+            view: view,
+            onToggleDone: (isDone) =>
+                _toggle(context, ref, view.task.id, isDone: isDone),
+          ),
         );
       },
     );
+  }
+
+  Future<void> _reorder(
+    BuildContext context,
+    WidgetRef ref,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    // onReorderItem already adjusts newIndex for the item removed at oldIndex.
+    final ids = tasks.map((t) => t.task.id).toList();
+    final moved = ids.removeAt(oldIndex);
+    ids.insert(newIndex, moved);
+    final result = await ref
+        .read(taskControllerProvider.notifier)
+        .reorder(checklistId, ids);
+    if (!context.mounted) return;
+    if (result case Err()) {
+      showErrorSnackBar(context, 'Could not reorder the tasks');
+    }
+  }
+
+  Future<bool> _confirmDelete(BuildContext context, String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete "$title"?'),
+        content: const Text(
+          'This also deletes its subtasks. It cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    return confirmed ?? false;
+  }
+
+  // Confirms, then deletes, then always returns false: on success the reactive
+  // stream removes the row (so the Dismissible never enters its dismissed state
+  // mid-async-write); on failure the row stays and a snackbar shows.
+  Future<bool> _confirmAndDelete(
+    BuildContext context,
+    WidgetRef ref,
+    int id,
+    String title,
+  ) async {
+    final confirmed = await _confirmDelete(context, title);
+    if (!confirmed || !context.mounted) return false;
+    final result = await ref.read(taskControllerProvider.notifier).delete(id);
+    if (!context.mounted) return false;
+    if (result case Err()) {
+      showErrorSnackBar(context, 'Could not delete the task');
+    }
+    return false;
   }
 
   Future<void> _toggle(
