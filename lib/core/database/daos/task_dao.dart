@@ -125,7 +125,8 @@ class TaskDao extends DatabaseAccessor<AppDatabase>
   /// Sets the task's title, notes, and due date from the editor draft — a full
   /// write of the editable fields, not a patch.
   ///
-  /// Passing `notes: null` clears the notes; `dueDay: null` clears the due date.
+  /// Passing `notes: null` clears the notes;
+  /// `dueDay: null` clears the due date.
   Future<int> edit(
     int id, {
     required String title,
