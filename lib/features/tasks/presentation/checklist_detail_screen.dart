@@ -4,6 +4,7 @@ import 'package:checkplan/core/widgets/error_snackbar.dart';
 import 'package:checkplan/core/widgets/name_dialog.dart';
 import 'package:checkplan/features/checklists/application/checklist_providers.dart';
 import 'package:checkplan/features/tasks/application/task_providers.dart';
+import 'package:checkplan/features/tasks/presentation/widgets/task_editor_sheet.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/task_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,6 +99,7 @@ class _TaskList extends ConsumerWidget {
           confirmDismiss: (_) =>
               _confirmAndDelete(context, ref, view.task.id, view.task.title),
           child: TaskTile(
+            onEdit: () => _edit(context, ref, view),
             key: ValueKey(view.task.id),
             view: view,
             onToggleDone: (isDone) =>
@@ -181,6 +183,18 @@ class _TaskList extends ConsumerWidget {
     if (!context.mounted) return;
     if (result case Err()) {
       showErrorSnackBar(context, 'Could not update the task');
+    }
+  }
+
+  Future<void> _edit(BuildContext context, WidgetRef ref, TaskView view) async {
+    final draft = await showTaskEditorSheet(context, task: view.task);
+    if (draft == null || !context.mounted) return;
+    final result = await ref
+        .read(taskControllerProvider.notifier)
+        .edit(view.task.id, title: draft.title, notes: draft.notes);
+    if (!context.mounted) return;
+    if (result case Err()) {
+      showErrorSnackBar(context, 'Could not save the task');
     }
   }
 }

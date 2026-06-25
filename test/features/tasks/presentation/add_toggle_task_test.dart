@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../../support/memory_db.dart';
 import '../../../support/pump_checklist_detail_screen.dart';
+import '../../../support/seed_reads.dart';
 
 void main() {
   testWidgets('FAB adds a task; the checkbox toggles done', (tester) async {
@@ -19,10 +20,10 @@ void main() {
 
     await tester.tap(find.byType(Checkbox));
     await tester.pumpAndSettle();
-    // One-shot read of the persisted row — not a `.watch()` stream, which
-    // hangs in a widget-test body where the frozen fake-async clock never
-    // delivers its first emission.
-    final tasks = await db.select(db.tasks).get();
+    // One-shot seed read — not a `.watch()` stream, which would hang in a
+    // widget-test body where the fake-async clock never delivers its first
+    // emission.
+    final tasks = await db.readTasks();
     expect(tasks.single.isDone, isTrue);
   });
 }

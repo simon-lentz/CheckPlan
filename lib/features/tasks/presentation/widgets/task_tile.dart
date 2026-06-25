@@ -8,7 +8,12 @@ import 'package:flutter/material.dart';
 /// providers.
 class TaskTile extends StatelessWidget {
   /// Creates a task row from [view] and its toggle callback.
-  const TaskTile({required this.view, required this.onToggleDone, super.key});
+  const TaskTile({
+    required this.view,
+    required this.onToggleDone,
+    required this.onEdit,
+    super.key,
+  });
 
   /// The task and its subtask progress.
   final TaskView view;
@@ -16,10 +21,14 @@ class TaskTile extends StatelessWidget {
   /// Invoked with the new done-state when the checkbox is toggled.
   final ValueChanged<bool> onToggleDone;
 
+  /// Invoked when the user taps the row to edit the task.
+  final VoidCallback onEdit;
+
   @override
   Widget build(BuildContext context) {
     final (done, total) = view.subtaskProgress;
     return ListTile(
+      onTap: onEdit,
       leading: Checkbox(
         value: view.task.isDone,
         onChanged: (value) => onToggleDone(value ?? false),
