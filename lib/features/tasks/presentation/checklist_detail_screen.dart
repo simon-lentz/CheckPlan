@@ -86,7 +86,10 @@ class _TaskList extends ConsumerWidget {
       itemCount: tasks.length,
       onReorderItem: (oldIndex, newIndex) =>
           _reorder(context, ref, oldIndex, newIndex),
-      itemBuilder: (context, index) {
+      // The row handlers below close over this build context (not a per-row
+      // builder context), so a row that unmounts mid-write can't suppress its
+      // error snackbar. Hence the wildcard parameter.
+      itemBuilder: (_, index) {
         final view = tasks[index];
         return _TaskItem(
           key: ValueKey(view.task.id),
