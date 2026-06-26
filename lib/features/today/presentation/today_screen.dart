@@ -23,14 +23,13 @@ class TodayScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Today')),
       body: switch (todayAsync) {
-        // Surface a stream error even when a stale value is retained.
         AsyncError(:final error) => StreamErrorView(error: error),
-        // Match any state that carries a value (including an
-        // AsyncLoading-with-previous during the midnight rollover), so a list
-        // that has loaded once never blanks back to a spinner.
         AsyncValue(:final value?)
             when value.overdue.isEmpty && value.dueToday.isEmpty =>
-          const EmptyView(message: 'Nothing due — enjoy the day'),
+          const EmptyView(
+            message: 'Nothing due — nice.',
+            icon: Icons.event_available,
+          ),
         AsyncValue(:final value?) => _TodayList(buckets: value, today: today),
         _ => const Center(child: CircularProgressIndicator()),
       },

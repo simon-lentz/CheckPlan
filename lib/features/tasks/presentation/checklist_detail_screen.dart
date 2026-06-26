@@ -39,6 +39,7 @@ class ChecklistDetailScreen extends ConsumerWidget {
       body: switch (tasksAsync) {
         AsyncData(:final value) when value.isEmpty => const EmptyView(
           message: 'No tasks yet',
+          icon: Icons.task_alt,
         ),
         AsyncData(:final value) => _TaskList(
           tasks: value,

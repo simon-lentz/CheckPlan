@@ -26,6 +26,7 @@ class ChecklistsScreen extends ConsumerWidget {
       body: switch (checklistsAsync) {
         AsyncData(:final value) when value.isEmpty => const EmptyView(
           message: 'No checklists yet',
+          icon: Icons.checklist,
         ),
         AsyncData(:final value) => _ChecklistList(summaries: value),
         AsyncError(:final error) => StreamErrorView(error: error),
