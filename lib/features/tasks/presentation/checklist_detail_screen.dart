@@ -97,6 +97,7 @@ class _TaskList extends ConsumerWidget {
         return _TaskItem(
           key: ValueKey(view.task.id),
           view: view,
+          today: today,
           onToggleDone: (isDone) =>
               _toggle(context, ref, view.task.id, isDone: isDone),
           onEdit: () => _edit(context, ref, view, today),
@@ -197,6 +198,7 @@ class _TaskList extends ConsumerWidget {
 class _TaskItem extends ConsumerStatefulWidget {
   const _TaskItem({
     required this.view,
+    required this.today,
     required this.onToggleDone,
     required this.onEdit,
     required this.confirmAndDelete,
@@ -204,6 +206,7 @@ class _TaskItem extends ConsumerStatefulWidget {
   });
 
   final TaskView view;
+  final EpochDay today;
   final ValueChanged<bool> onToggleDone;
   final VoidCallback onEdit;
   final Future<bool> Function() confirmAndDelete;
@@ -248,6 +251,7 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
           child: TaskTile(
             key: ValueKey(task.id),
             view: widget.view,
+            today: widget.today,
             onToggleDone: widget.onToggleDone,
             onEdit: widget.onEdit,
             expanded: _expanded,
