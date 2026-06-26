@@ -28,6 +28,10 @@ void main() {
   );
 }
 
+/// The fixed "today" the interactive preview pins, shared by the seeded due
+/// dates and the `currentDayProvider` override so the two cannot drift apart.
+final EpochDay _previewToday = EpochDay.fromDateTime(DateTime(2026, 6, 25));
+
 /// Interactive widget preview of [CheckPlanApp], backed by an in-memory store
 /// instead of a database.
 ///
@@ -40,12 +44,10 @@ void main() {
 @Preview(name: 'CheckPlanApp')
 Widget previewCheckPlanApp() {
   final store = _PreviewStore();
-  final detailStore = _PreviewDetailStore();
+  final detailStore = _PreviewDetailStore(store);
   return ProviderScope(
     overrides: [
-      currentDayProvider.overrideWithValue(
-        EpochDay.fromDateTime(DateTime(2026, 6, 25)),
-      ),
+      currentDayProvider.overrideWithValue(_previewToday),
       todayProvider.overrideWith(
         (ref) => detailStore.watchToday(ref.watch(currentDayProvider)),
       ),
@@ -104,6 +106,16 @@ class _PreviewStore {
     for (final summary in _summaries)
       if (summary.checklist.archivedAt == null) summary,
   ];
+
+  /// The checklist row for [id] regardless of archived state, or null if it
+  /// was hard-deleted. Lets the detail store mirror `watchTodayBuckets`'s join
+  /// on the checklist title and its archived-checklist exclusion.
+  Checklist? checklistById(int id) {
+    for (final summary in _summaries) {
+      if (summary.checklist.id == id) return summary.checklist;
+    }
+    return null;
+  }
 
   void _emit() => _controller.add(_active());
 
@@ -239,19 +251,19 @@ class _PreviewController extends ChecklistController {
 /// loop rebuilds the UI. Seeds checklist id 1 so the opened detail is
 /// populated.
 class _PreviewDetailStore {
-  _PreviewDetailStore() {
+  _PreviewDetailStore(this._checklists) {
     final apples = _newTask(1, 'Apples', isDone: true);
-    final today = EpochDay.fromDateTime(DateTime(2026, 6, 25));
     _tasks.addAll([
       apples,
       _newTask(1, 'Oranges', isDone: true),
-      _newTask(1, 'Bread', dueDay: today.value), // due today
-      _newTask(1, 'Milk', dueDay: today.value - 1), // overdue
+      _newTask(1, 'Bread', dueDay: _previewToday.value), // due today
+      _newTask(1, 'Milk', dueDay: _previewToday.value - 1), // overdue
       _newTask(1, 'Butter'),
     ]);
     _subtasks.add(_newSubtask(apples.id, 'Granny Smith'));
   }
 
+  final _PreviewStore _checklists;
   final _tick = StreamController<void>.broadcast();
   final List<Task> _tasks = [];
   final List<Subtask> _subtasks = [];
@@ -282,7 +294,11 @@ class _PreviewDetailStore {
     for (final task in _tasks) {
       final due = task.dueDay;
       if (task.isDone || due == null || due > today.value) continue;
-      final entry = TodayTask(task: task, checklistTitle: 'Groceries');
+      // Mirror watchTodayBuckets: derive the real parent-checklist title and
+      // skip any task whose checklist is archived or hard-deleted.
+      final checklist = _checklists.checklistById(task.checklistId);
+      if (checklist == null || checklist.archivedAt != null) continue;
+      final entry = TodayTask(task: task, checklistTitle: checklist.title);
       if (due < today.value) {
         overdue.add(entry);
       } else {

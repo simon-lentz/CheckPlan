@@ -1,7 +1,9 @@
 import 'package:checkplan/core/database/app_database.dart';
+import 'package:checkplan/core/time/current_day.dart';
 import 'package:checkplan/core/time/epoch_day.dart';
 import 'package:checkplan/core/validation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The edited fields returned by [showTaskEditorSheet].
 class TaskDraft {
@@ -20,32 +22,33 @@ class TaskDraft {
 
 /// Shows the task editor as a modal bottom sheet, pre-filled from [task].
 ///
-/// [today] seeds the date picker when the task has no due date yet. Returns the
-/// edited [TaskDraft] on save, or null if dismissed. Save is disabled while the
-/// title is empty or over-length (see: [titleError]).
+/// Returns the edited [TaskDraft] on save, or null if dismissed. Save is
+/// disabled while the title is empty or over-length (see: [titleError]).
 Future<TaskDraft?> showTaskEditorSheet(
   BuildContext context, {
   required Task task,
-  required EpochDay today,
 }) {
   return showModalBottomSheet<TaskDraft>(
     context: context,
     isScrollControlled: true,
-    builder: (context) => _TaskEditorSheet(task: task, today: today),
+    // Root navigator so the modal barrier covers the whole app (including the
+    // shell's bottom nav bar), not just the branch body — a tab switch then
+    // can't abandon a half-finished edit.
+    useRootNavigator: true,
+    builder: (context) => _TaskEditorSheet(task: task),
   );
 }
 
-class _TaskEditorSheet extends StatefulWidget {
-  const _TaskEditorSheet({required this.task, required this.today});
+class _TaskEditorSheet extends ConsumerStatefulWidget {
+  const _TaskEditorSheet({required this.task});
 
   final Task task;
-  final EpochDay today;
 
   @override
-  State<_TaskEditorSheet> createState() => _TaskEditorSheetState();
+  ConsumerState<_TaskEditorSheet> createState() => _TaskEditorSheetState();
 }
 
-class _TaskEditorSheetState extends State<_TaskEditorSheet> {
+class _TaskEditorSheetState extends ConsumerState<_TaskEditorSheet> {
   late final TextEditingController _title = TextEditingController(
     text: widget.task.title,
   );
@@ -138,9 +141,12 @@ class _TaskEditorSheetState extends State<_TaskEditorSheet> {
   }
 
   Future<void> _pickDueDate() async {
+    // Read today lazily at tap time (not a frozen field) so a sheet left open
+    // across midnight still seeds the picker with the current day.
+    final today = ref.read(currentDayProvider);
     final picked = await showDatePicker(
       context: context,
-      initialDate: (_dueDay ?? widget.today).toLocalDateTime(),
+      initialDate: (_dueDay ?? today).toLocalDateTime(),
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
     );

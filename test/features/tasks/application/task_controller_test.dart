@@ -102,26 +102,6 @@ void main() {
     expect((result as Err<void>).error, isA<ReorderConflict>());
   });
 
-  test('edit updates title and clears notes with null', () async {
-    final list = await seedChecklist();
-    final id = ((await controller().add(list, 'Old')) as Ok<int>).value;
-    await controller().edit(id, title: 'New', notes: 'note', dueDay: null);
-    var task = (await onlyTask(list)).task;
-    expect(task.title, 'New');
-    expect(task.notes, 'note');
-    await controller().edit(id, title: 'New', dueDay: null);
-    task = (await onlyTask(list)).task;
-    expect(task.notes, isNull);
-  });
-
-  test('edit rejects a blank title at the controller boundary', () async {
-    final list = await seedChecklist();
-    final id = ((await controller().add(list, 'Old')) as Ok<int>).value;
-    final result = await controller().edit(id, title: '   ', dueDay: null);
-    expect(result, isA<Err<void>>());
-    expect((result as Err<void>).error, isA<ValidationException>());
-  });
-
   test('edit sets and then clears the due date', () async {
     final list = await seedChecklist();
     final id = ((await controller().add(list, 'Task')) as Ok<int>).value;

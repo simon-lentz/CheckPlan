@@ -12,6 +12,7 @@ import 'package:checkplan/core/widgets/stream_error_view.dart';
 import 'package:checkplan/features/checklists/application/checklist_providers.dart';
 import 'package:checkplan/features/tasks/application/subtask_providers.dart';
 import 'package:checkplan/features/tasks/application/task_providers.dart';
+import 'package:checkplan/features/tasks/presentation/task_actions.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/subtask_tile.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/task_editor_sheet.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/task_tile.dart';
@@ -99,8 +100,8 @@ class _TaskList extends ConsumerWidget {
           view: view,
           today: today,
           onToggleDone: (isDone) =>
-              _toggle(context, ref, view.task.id, isDone: isDone),
-          onEdit: () => _edit(context, ref, view, today),
+              toggleTaskDone(context, ref, view.task.id, isDone: isDone),
+          onEdit: () => _edit(context, ref, view),
           confirmAndDelete: () =>
               _confirmAndDelete(context, ref, view.task.id, view.task.title),
         );
@@ -151,32 +152,12 @@ class _TaskList extends ConsumerWidget {
     return false;
   }
 
-  Future<void> _toggle(
-    BuildContext context,
-    WidgetRef ref,
-    int id, {
-    required bool isDone,
-  }) async {
-    final result = await ref
-        .read(taskControllerProvider.notifier)
-        .setDone(id, isDone: isDone);
-    if (!context.mounted) return;
-    if (result case Err()) {
-      showErrorSnackBar(context, 'Could not update the task');
-    }
-  }
-
   Future<void> _edit(
     BuildContext context,
     WidgetRef ref,
     TaskView view,
-    EpochDay today,
   ) async {
-    final draft = await showTaskEditorSheet(
-      context,
-      task: view.task,
-      today: today,
-    );
+    final draft = await showTaskEditorSheet(context, task: view.task);
     if (draft == null || !context.mounted) return;
     final result = await ref
         .read(taskControllerProvider.notifier)

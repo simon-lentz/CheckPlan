@@ -1,12 +1,10 @@
 import 'package:checkplan/core/database/summaries.dart';
 import 'package:checkplan/core/model/due_status.dart';
-import 'package:checkplan/core/result.dart';
 import 'package:checkplan/core/time/current_day.dart';
 import 'package:checkplan/core/time/epoch_day.dart';
 import 'package:checkplan/core/widgets/empty_view.dart';
-import 'package:checkplan/core/widgets/error_snackbar.dart';
 import 'package:checkplan/core/widgets/stream_error_view.dart';
-import 'package:checkplan/features/tasks/application/task_providers.dart';
+import 'package:checkplan/features/tasks/presentation/task_actions.dart';
 import 'package:checkplan/features/today/application/today_providers.dart';
 import 'package:checkplan/features/today/presentation/widgets/today_task_tile.dart';
 import 'package:flutter/material.dart';
@@ -25,11 +23,15 @@ class TodayScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Today')),
       body: switch (todayAsync) {
-        AsyncData(:final value)
+        // Surface a stream error even when a stale value is retained.
+        AsyncError(:final error) => StreamErrorView(error: error),
+        // Match any state that carries a value (including an
+        // AsyncLoading-with-previous during the midnight rollover), so a list
+        // that has loaded once never blanks back to a spinner.
+        AsyncValue(:final value?)
             when value.overdue.isEmpty && value.dueToday.isEmpty =>
           const EmptyView(message: 'Nothing due — enjoy the day'),
-        AsyncData(:final value) => _TodayList(buckets: value, today: today),
-        AsyncError(:final error) => StreamErrorView(error: error),
+        AsyncValue(:final value?) => _TodayList(buckets: value, today: today),
         _ => const Center(child: CircularProgressIndicator()),
       },
     );
@@ -68,23 +70,8 @@ class _TodayList extends ConsumerWidget {
     entry: entry,
     status: status,
     onToggleDone: (isDone) =>
-        _toggle(context, ref, entry.task.id, isDone: isDone),
+        toggleTaskDone(context, ref, entry.task.id, isDone: isDone),
   );
-
-  Future<void> _toggle(
-    BuildContext context,
-    WidgetRef ref,
-    int id, {
-    required bool isDone,
-  }) async {
-    final result = await ref
-        .read(taskControllerProvider.notifier)
-        .setDone(id, isDone: isDone);
-    if (!context.mounted) return;
-    if (result case Err()) {
-      showErrorSnackBar(context, 'Could not update the task');
-    }
-  }
 }
 
 /// A section label above a group of Today rows.

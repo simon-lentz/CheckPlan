@@ -55,10 +55,16 @@ DueStatus dueStatusFor(int? dueDay, EpochDay today) {
 ///
 /// [Upcoming] shows the local month/day (e.g. `Due 6/28`), reconstructed from
 /// the zone-free [EpochDay] for display only.
-String describe(DueStatus status) => switch (status) {
-  NoDueDate() => 'No date',
-  Overdue(:final days) => 'Overdue ${days}d',
-  DueToday() => 'Today',
-  Upcoming(:final on) =>
-    'Due ${on.toLocalDateTime().month}/${on.toLocalDateTime().day}',
-};
+String describe(DueStatus status) {
+  switch (status) {
+    case NoDueDate():
+      return 'No date';
+    case Overdue(:final days):
+      return 'Overdue ${days}d';
+    case DueToday():
+      return 'Today';
+    case Upcoming(:final on):
+      final d = on.toLocalDateTime();
+      return 'Due ${d.month}/${d.day}';
+  }
+}

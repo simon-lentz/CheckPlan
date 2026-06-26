@@ -1,6 +1,8 @@
+import 'package:checkplan/core/time/current_day.dart';
 import 'package:checkplan/core/time/epoch_day.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/task_editor_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../../support/memory_db.dart';
 import '../../../support/seed_reads.dart';
@@ -16,16 +18,16 @@ void main() {
 
     TaskDraft? draft;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async => draft = await showTaskEditorSheet(
-                context,
-                task: task,
-                today: today,
+      ProviderScope(
+        overrides: [currentDayProvider.overrideWithValue(today)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async =>
+                    draft = await showTaskEditorSheet(context, task: task),
+                child: const Text('open'),
               ),
-              child: const Text('open'),
             ),
           ),
         ),
@@ -51,16 +53,16 @@ void main() {
 
     TaskDraft? draft;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async => draft = await showTaskEditorSheet(
-                context,
-                task: task,
-                today: today,
+      ProviderScope(
+        overrides: [currentDayProvider.overrideWithValue(today)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async =>
+                    draft = await showTaskEditorSheet(context, task: task),
+                child: const Text('open'),
               ),
-              child: const Text('open'),
             ),
           ),
         ),
@@ -71,7 +73,8 @@ void main() {
 
     await tester.tap(find.text('Add due date'));
     await tester.pumpAndSettle();
-    // Accept the pre-selected initialDate, which is `today`.
+    // Accept the pre-selected initialDate, which is `today` (read from
+    // currentDayProvider at pick time).
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));
@@ -92,16 +95,16 @@ void main() {
 
     TaskDraft? draft;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () async => draft = await showTaskEditorSheet(
-                context,
-                task: task,
-                today: today,
+      ProviderScope(
+        overrides: [currentDayProvider.overrideWithValue(today)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () async =>
+                    draft = await showTaskEditorSheet(context, task: task),
+                child: const Text('open'),
               ),
-              child: const Text('open'),
             ),
           ),
         ),

@@ -26,6 +26,9 @@ void main() {
     // The detail app bar shows the checklist title and its empty state.
     expect(find.widgetWithText(AppBar, 'Groceries'), findsOneWidget);
     expect(find.text('No tasks yet'), findsOneWidget);
+    // The detail route is nested under the Lists branch, so it keeps the
+    // shell's bottom navigation bar instead of replacing the whole screen.
+    expect(find.byType(NavigationBar), findsOneWidget);
   });
 
   testWidgets('a repeat open is ignored while detail is already up', (

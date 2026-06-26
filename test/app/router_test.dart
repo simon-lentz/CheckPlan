@@ -2,25 +2,37 @@ import 'package:checkplan/app/app.dart';
 import 'package:checkplan/app/router.dart';
 import 'package:checkplan/core/database/database_providers.dart';
 import 'package:checkplan/core/time/clock.dart';
-import 'package:checkplan/core/time/current_day.dart';
 import 'package:checkplan/core/time/epoch_day.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../support/memory_db.dart';
+import '../support/test_overrides.dart';
 
 void main() {
   final today = EpochDay.fromDateTime(DateTime(2026, 6, 18));
+
+  Future<void> pumpRouterApp(
+    WidgetTester tester,
+    String initialLocation,
+  ) async {
+    final router = createAppRouter(initialLocation: initialLocation);
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: baseTestOverrides(today: today),
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
 
   testWidgets('the bottom nav switches between Lists and Today', (
     tester,
   ) async {
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(memoryDb()),
-          currentDayProvider.overrideWithValue(today),
-        ],
+        overrides: baseTestOverrides(today: today),
         child: const CheckPlanApp(),
       ),
     );
@@ -39,18 +51,7 @@ void main() {
   });
 
   testWidgets('initialLocation deep-links the Today branch', (tester) async {
-    final router = createAppRouter(initialLocation: '/today');
-    addTearDown(router.dispose);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(memoryDb()),
-          currentDayProvider.overrideWithValue(today),
-        ],
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpRouterApp(tester, '/today');
 
     expect(
       tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
@@ -62,18 +63,7 @@ void main() {
   testWidgets('a malformed checklist id shows the not-found screen', (
     tester,
   ) async {
-    final router = createAppRouter(initialLocation: '/checklist/abc');
-    addTearDown(router.dispose);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(memoryDb()),
-          currentDayProvider.overrideWithValue(today),
-        ],
-        child: MaterialApp.router(routerConfig: router),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpRouterApp(tester, '/checklist/abc');
 
     expect(find.text('That checklist does not exist'), findsOneWidget);
   });

@@ -18,8 +18,8 @@ class _FailingTaskController extends TaskController {
   Future<Result<void>> edit(
     int id, {
     required String title,
+    required EpochDay? dueDay,
     String? notes,
-    EpochDay? dueDay,
   }) async => _boom();
   @override
   Future<Result<void>> setDone(int id, {required bool isDone}) async => _boom();
