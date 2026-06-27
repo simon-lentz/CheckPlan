@@ -24,18 +24,29 @@ class ChecklistsScreen extends ConsumerWidget {
     final checklistsAsync = ref.watch(activeChecklistsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Lists')),
-      body: switch (checklistsAsync) {
-        AsyncData(:final value) when value.isEmpty => const EmptyView(
-          message: 'No checklists yet',
-          icon: Icons.checklist,
-        ),
-        AsyncData(:final value) => _ChecklistList(summaries: value),
-        AsyncError(:final error) => StreamErrorView(
-          error: error,
-          onRetry: () => ref.invalidate(appDatabaseProvider),
-        ),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: switch (checklistsAsync) {
+          AsyncData(:final value) when value.isEmpty => const EmptyView(
+            key: ValueKey('empty'),
+            message: 'No checklists yet',
+            icon: Icons.checklist,
+          ),
+          AsyncData(:final value) => KeyedSubtree(
+            key: const ValueKey('data'),
+            child: _ChecklistList(summaries: value),
+          ),
+          AsyncError(:final error) => StreamErrorView(
+            key: const ValueKey('error'),
+            error: error,
+            onRetry: () => ref.invalidate(appDatabaseProvider),
+          ),
+          _ => const Center(
+            key: ValueKey('loading'),
+            child: CircularProgressIndicator(),
+          ),
+        },
+      ),
       floatingActionButton: switch (checklistsAsync) {
         AsyncData() => FloatingActionButton(
           onPressed: () => _createChecklist(context, ref),

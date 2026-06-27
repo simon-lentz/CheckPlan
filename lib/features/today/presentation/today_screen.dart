@@ -23,20 +23,31 @@ class TodayScreen extends ConsumerWidget {
     final today = ref.watch(currentDayProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Today')),
-      body: switch (todayAsync) {
-        AsyncError(:final error) => StreamErrorView(
-          error: error,
-          onRetry: () => ref.invalidate(appDatabaseProvider),
-        ),
-        AsyncValue(:final value?)
-            when value.overdue.isEmpty && value.dueToday.isEmpty =>
-          const EmptyView(
-            message: 'Nothing due — nice.',
-            icon: Icons.event_available,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: switch (todayAsync) {
+          AsyncError(:final error) => StreamErrorView(
+            key: const ValueKey('error'),
+            error: error,
+            onRetry: () => ref.invalidate(appDatabaseProvider),
           ),
-        AsyncValue(:final value?) => _TodayList(buckets: value, today: today),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+          AsyncValue(:final value?)
+              when value.overdue.isEmpty && value.dueToday.isEmpty =>
+            const EmptyView(
+              key: ValueKey('empty'),
+              message: 'Nothing due — nice.',
+              icon: Icons.event_available,
+            ),
+          AsyncValue(:final value?) => KeyedSubtree(
+            key: const ValueKey('data'),
+            child: _TodayList(buckets: value, today: today),
+          ),
+          _ => const Center(
+            key: ValueKey('loading'),
+            child: CircularProgressIndicator(),
+          ),
+        },
+      ),
     );
   }
 }

@@ -52,7 +52,13 @@ class ChecklistTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('$done/$total'),
-                LinearProgressIndicator(value: done / total),
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: done / total),
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                  builder: (context, value, _) =>
+                      LinearProgressIndicator(value: value),
+                ),
               ],
             ),
       trailing: PopupMenuButton<_ChecklistAction>(

@@ -37,21 +37,29 @@ class ChecklistDetailScreen extends ConsumerWidget {
     final tasksAsync = ref.watch(tasksForChecklistProvider(checklistId));
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: switch (tasksAsync) {
-        AsyncData(:final value) when value.isEmpty => const EmptyView(
-          message: 'No tasks yet',
-          icon: Icons.task_alt,
-        ),
-        AsyncData(:final value) => _TaskList(
-          tasks: value,
-          checklistId: checklistId,
-        ),
-        AsyncError(:final error) => StreamErrorView(
-          error: error,
-          onRetry: () => ref.invalidate(appDatabaseProvider),
-        ),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: switch (tasksAsync) {
+          AsyncData(:final value) when value.isEmpty => const EmptyView(
+            key: ValueKey('empty'),
+            message: 'No tasks yet',
+            icon: Icons.task_alt,
+          ),
+          AsyncData(:final value) => KeyedSubtree(
+            key: const ValueKey('data'),
+            child: _TaskList(tasks: value, checklistId: checklistId),
+          ),
+          AsyncError(:final error) => StreamErrorView(
+            key: const ValueKey('error'),
+            error: error,
+            onRetry: () => ref.invalidate(appDatabaseProvider),
+          ),
+          _ => const Center(
+            key: ValueKey('loading'),
+            child: CircularProgressIndicator(),
+          ),
+        },
+      ),
       floatingActionButton: switch (tasksAsync) {
         AsyncData() => FloatingActionButton(
           onPressed: () => _addTask(context, ref, checklistId),
@@ -245,7 +253,14 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
             onToggleExpanded: () => setState(() => _expanded = !_expanded),
           ),
         ),
-        if (_expanded) _subtasks(task.id),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: _expanded
+              ? _subtasks(task.id)
+              : const SizedBox(width: double.infinity),
+        ),
       ],
     );
   }
