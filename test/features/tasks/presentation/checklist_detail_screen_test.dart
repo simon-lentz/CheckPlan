@@ -1,3 +1,4 @@
+import 'package:checkplan/core/color.dart';
 import 'package:checkplan/core/database/summaries.dart';
 import 'package:checkplan/features/tasks/application/task_providers.dart';
 import 'package:flutter/material.dart';
@@ -38,5 +39,29 @@ void main() {
       ],
     );
     expect(find.textContaining('Something went wrong'), findsOneWidget);
+  });
+
+  testWidgets('a coloured checklist tints the detail app bar', (tester) async {
+    final db = memoryDb();
+    final id = await db.checklistDao.create('Chores');
+    final colorValue = Colors.red.toARGB32();
+    await db.checklistDao.setColor(id, colorValue);
+    await pumpChecklistDetailScreen(tester, db: db, checklistId: id);
+
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(appBar.backgroundColor, Color(colorValue));
+    expect(appBar.foregroundColor, readableOn(Color(colorValue)));
+  });
+
+  testWidgets('an uncoloured checklist leaves the app bar untinted', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final id = await db.checklistDao.create('Plain');
+    await pumpChecklistDetailScreen(tester, db: db, checklistId: id);
+
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(appBar.backgroundColor, isNull);
+    expect(appBar.foregroundColor, isNull);
   });
 }

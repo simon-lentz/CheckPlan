@@ -92,13 +92,16 @@ class ChecklistTile extends StatelessWidget {
 
 enum _ChecklistAction { rename, recolor, archive, delete }
 
+/// A named swatch in the recolour palette.
+typedef PaletteColor = ({String name, Color color});
+
 /// The fixed palette offered when recoloring a checklist.
-const List<Color> checklistPalette = [
-  Colors.red,
-  Colors.orange,
-  Colors.green,
-  Colors.blue,
-  Colors.purple,
+const List<PaletteColor> checklistPalette = [
+  (name: 'Red', color: Colors.red),
+  (name: 'Orange', color: Colors.orange),
+  (name: 'Green', color: Colors.green),
+  (name: 'Blue', color: Colors.blue),
+  (name: 'Purple', color: Colors.purple),
 ];
 
 /// The outcome of [showRecolorDialog]: the chosen [color], where null means
@@ -122,14 +125,15 @@ Future<RecolorChoice?> showRecolorDialog(BuildContext context) {
     builder: (context) => SimpleDialog(
       title: const Text('Recolor'),
       children: [
-        for (final color in checklistPalette)
+        for (final entry in checklistPalette)
           SimpleDialogOption(
-            onPressed: () => Navigator.of(context).pop(RecolorChoice(color)),
+            onPressed: () =>
+                Navigator.of(context).pop(RecolorChoice(entry.color)),
             child: Row(
               children: [
-                CircleAvatar(backgroundColor: color, radius: 12),
+                CircleAvatar(backgroundColor: entry.color, radius: 12),
                 const SizedBox(width: 12),
-                Text('#${color.toARGB32().toRadixString(16).toUpperCase()}'),
+                Text(entry.name),
               ],
             ),
           ),

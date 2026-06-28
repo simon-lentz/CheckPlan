@@ -1,9 +1,19 @@
+import 'package:checkplan/core/result.dart';
 import 'package:checkplan/core/time/epoch_day.dart';
 import 'package:checkplan/core/widgets/due_date_chip.dart';
+import 'package:checkplan/features/tasks/application/task_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../../support/memory_db.dart';
 import '../../../support/pump_today_screen.dart';
+
+/// A task controller whose `setDone` fails, to drive the Today row's
+/// failed-completion path. Reads still come from the real in-memory DB.
+class _FailingTaskController extends TaskController {
+  @override
+  Future<Result<void>> setDone(int id, {required bool isDone}) async =>
+      Err(Exception('boom'));
+}
 
 void main() {
   final today = EpochDay.fromDateTime(DateTime(2026, 6, 18));
@@ -33,6 +43,29 @@ void main() {
     expect(find.text('Overdue 1d'), findsOneWidget);
   });
 
+  testWidgets('a Today task shows its subtask progress and notes', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('Errands');
+    final id = await db.taskDao.add(list, 'Pack bags');
+    await db.taskDao.edit(
+      id,
+      title: 'Pack bags',
+      dueDay: today,
+      notes: 'passport + chargers',
+    );
+    final sub = await db.subtaskDao.add(id, 'shirts');
+    await db.subtaskDao.add(id, 'shoes');
+    await db.subtaskDao.setDone(sub, isDone: true);
+
+    await pumpTodayScreen(tester, db: db, today: today);
+
+    expect(find.text('Pack bags'), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget); // subtask hint
+    expect(find.text('passport + chargers'), findsOneWidget); // notes preview
+  });
+
   testWidgets('shows the empty state when nothing is due', (tester) async {
     await pumpTodayScreen(tester, today: today);
     expect(find.text('Nothing due — nice.'), findsOneWidget);
@@ -51,5 +84,43 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Call dentist'), findsNothing); // setDone -> leaves Today
+  });
+
+  testWidgets('checking a Today task ticks the box before it leaves', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('Errands');
+    final id = await db.taskDao.add(list, 'Call dentist');
+    await db.taskDao.setDueDate(id, today);
+    await pumpTodayScreen(tester, db: db, today: today);
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump(); // one frame: the optimistic tick, before it fades out
+
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
+    expect(find.text('Call dentist'), findsOneWidget); // still visible, ticking
+    await tester.pumpAndSettle(); // let it finish leaving, for a clean teardown
+  });
+
+  testWidgets('a failed completion keeps the Today row', (tester) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('Errands');
+    final id = await db.taskDao.add(list, 'Call dentist');
+    await db.taskDao.setDueDate(id, today);
+    await pumpTodayScreen(
+      tester,
+      db: db,
+      today: today,
+      overrides: [
+        taskControllerProvider.overrideWith(_FailingTaskController.new),
+      ],
+    );
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Could not update the task'), findsOneWidget);
+    expect(find.text('Call dentist'), findsOneWidget); // restored, not lost
   });
 }

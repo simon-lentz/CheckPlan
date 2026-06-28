@@ -77,7 +77,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Recolor'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('#FF2196F3'));
+    await tester.tap(find.text('Blue'));
     await tester.pumpAndSettle();
     expect(find.text('Could not update the color'), findsOneWidget);
   });
