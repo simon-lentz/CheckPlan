@@ -185,8 +185,8 @@ abstract class _$ChecklistController extends $Notifier<void> {
 /// active list (still loading, or archived).
 ///
 /// Derives from [activeChecklistsProvider] so the detail screen can title its
-/// app bar without a separate query. `autoDispose` (the codegen default) for the
-/// same reasons as the other detail reads.
+/// app bar without a separate query. `autoDispose` (the codegen default) for
+/// the same reasons as the other detail reads.
 
 @ProviderFor(checklistById)
 final checklistByIdProvider = ChecklistByIdFamily._();
@@ -195,8 +195,8 @@ final checklistByIdProvider = ChecklistByIdFamily._();
 /// active list (still loading, or archived).
 ///
 /// Derives from [activeChecklistsProvider] so the detail screen can title its
-/// app bar without a separate query. `autoDispose` (the codegen default) for the
-/// same reasons as the other detail reads.
+/// app bar without a separate query. `autoDispose` (the codegen default) for
+/// the same reasons as the other detail reads.
 
 final class ChecklistByIdProvider
     extends
@@ -210,8 +210,8 @@ final class ChecklistByIdProvider
   /// active list (still loading, or archived).
   ///
   /// Derives from [activeChecklistsProvider] so the detail screen can title its
-  /// app bar without a separate query. `autoDispose` (the codegen default) for the
-  /// same reasons as the other detail reads.
+  /// app bar without a separate query. `autoDispose` (the codegen default) for
+  /// the same reasons as the other detail reads.
   ChecklistByIdProvider._({
     required ChecklistByIdFamily super.from,
     required int super.argument,
@@ -270,8 +270,8 @@ String _$checklistByIdHash() => r'65e4817829270bcf4d13d455425a8f97206ce46f';
 /// active list (still loading, or archived).
 ///
 /// Derives from [activeChecklistsProvider] so the detail screen can title its
-/// app bar without a separate query. `autoDispose` (the codegen default) for the
-/// same reasons as the other detail reads.
+/// app bar without a separate query. `autoDispose` (the codegen default) for
+/// the same reasons as the other detail reads.
 
 final class ChecklistByIdFamily extends $Family
     with $FunctionalFamilyOverride<ChecklistSummary?, int> {
@@ -288,8 +288,8 @@ final class ChecklistByIdFamily extends $Family
   /// active list (still loading, or archived).
   ///
   /// Derives from [activeChecklistsProvider] so the detail screen can title its
-  /// app bar without a separate query. `autoDispose` (the codegen default) for the
-  /// same reasons as the other detail reads.
+  /// app bar without a separate query. `autoDispose` (the codegen default) for
+  /// the same reasons as the other detail reads.
 
   ChecklistByIdProvider call(int id) =>
       ChecklistByIdProvider._(argument: id, from: this);
