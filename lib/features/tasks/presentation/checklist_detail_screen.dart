@@ -1,3 +1,4 @@
+import 'package:checkplan/core/color.dart';
 import 'package:checkplan/core/database/summaries.dart';
 import 'package:checkplan/core/reordering.dart';
 import 'package:checkplan/core/result.dart';
@@ -30,12 +31,17 @@ class ChecklistDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final title =
-        ref.watch(checklistByIdProvider(checklistId))?.checklist.title ??
-        'Checklist';
+    final summary = ref.watch(checklistByIdProvider(checklistId));
+    final title = summary?.checklist.title ?? 'Checklist';
+    final colorValue = summary?.checklist.colorValue;
+    final barColor = colorValue == null ? null : Color(colorValue);
     final tasksAsync = ref.watch(tasksForChecklistProvider(checklistId));
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: barColor,
+        foregroundColor: barColor == null ? null : readableOn(barColor),
+      ),
       body: AsyncSwitcher(
         value: tasksAsync,
         isEmpty: (tasks) => tasks.isEmpty,
