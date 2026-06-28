@@ -33,7 +33,7 @@ void main() {
     // reactive result on the rendered tile, not the DB: pumpAndSettle settles
     // the UI, so the tile's avatar color is the deterministic signal (the
     // persisted value itself is covered by the controller test). Recolor rows
-    // are labelled by hex; Colors.blue is 0xFF2196F3.
+    // are labelled by colour name; Colors.blue is 0xFF2196F3.
     Color? avatarColor() =>
         tester.widget<CircleAvatar>(find.byType(CircleAvatar)).backgroundColor;
 
@@ -41,7 +41,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Recolor'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('#FF2196F3'));
+    // Swatches are labelled by colour name now, not ARGB hex.
+    expect(find.text('Blue'), findsOneWidget);
+    expect(find.text('#FF2196F3'), findsNothing);
+    await tester.tap(find.text('Blue'));
     await tester.pumpAndSettle();
     expect(avatarColor(), const Color(0xFF2196F3));
 
