@@ -44,8 +44,10 @@ class TaskTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final (done, total) = view.subtaskProgress;
     final status = dueStatusFor(view.task.dueDay, today);
+    final notes = view.task.notes?.trim() ?? '';
     return ListTile(
       onTap: onEdit,
+      isThreeLine: notes.isNotEmpty,
       leading: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -55,22 +57,37 @@ class TaskTile extends StatelessWidget {
             onPressed: onToggleExpanded,
           ),
           LabeledCheckbox(
-            label: 'Toggle "${view.task.title}" done',
+            label: toggleDoneLabel(view.task.title),
             value: view.task.isDone,
             onChanged: onToggleDone,
           ),
         ],
       ),
       title: Text(view.task.title),
-      // No chip for a task without a due date.
-      subtitle: status is NoDueDate
-          ? null
-          : Align(
-              alignment: Alignment.centerLeft,
-              child: DueDateChip(status: status),
-            ),
+      subtitle: _subtitle(status, notes),
       // (0, 0) -> no subtasks -> no hint.
       trailing: total == 0 ? null : Text('$done/$total'),
+    );
+  }
+
+  // The due chip (when present) plus a one-line notes preview. With no notes
+  // it returns exactly the prior subtitle (null or the lone chip), so the
+  // existing tile goldens render unchanged.
+  Widget? _subtitle(DueStatus status, String notes) {
+    final dueChip = status is NoDueDate
+        ? null
+        : Align(
+            alignment: Alignment.centerLeft,
+            child: DueDateChip(status: status),
+          );
+    if (notes.isEmpty) return dueChip;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ?dueChip,
+        Text(notes, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ],
     );
   }
 }

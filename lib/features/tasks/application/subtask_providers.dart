@@ -55,4 +55,20 @@ class SubtaskController extends _$SubtaskController {
   Future<Result<void>> delete(int id) => Result.guard(() async {
     await _dao.deleteById(id);
   });
+
+  /// Renames subtask [id] to the (trimmed) [title]. Rejects an empty or
+  /// over-length [title].
+  Future<Result<void>> rename(int id, String title) {
+    final error = titleError(title);
+    if (error != null) return Future.value(Err(ValidationException(error)));
+    return Result.guard(() async {
+      await _dao.rename(id, title.trim());
+    });
+  }
+
+  /// Rewrites subtask positions within [taskId] to match [orderedIds].
+  Future<Result<void>> reorder(int taskId, List<int> orderedIds) =>
+      Result.guard(() async {
+        await _dao.reorder(taskId, orderedIds);
+      });
 }

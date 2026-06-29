@@ -1,4 +1,5 @@
 import 'package:checkplan/core/color.dart';
+import 'package:checkplan/core/database/app_database.dart';
 import 'package:checkplan/core/database/summaries.dart';
 import 'package:checkplan/core/optimistic_order.dart';
 import 'package:checkplan/core/reordering.dart';
@@ -207,6 +208,9 @@ class _TaskItem extends ConsumerStatefulWidget {
 class _TaskItemState extends ConsumerState<_TaskItem> {
   bool _expanded = false;
   final _addController = TextEditingController();
+  // Reflects a just-dropped subtask reorder immediately, before the write
+  // round-trips back through the stream — mirrors _TaskListState's _order.
+  final _subOrder = OptimisticOrder();
 
   @override
   void dispose() {
@@ -262,20 +266,47 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
 
   Widget _subtasks(int taskId) {
     final subtasksAsync = ref.watch(subtasksForTaskProvider(taskId));
+    final value = switch (subtasksAsync) {
+      AsyncData(:final value) => value,
+      _ => const <Subtask>[],
+    };
+    final rows = _subOrder.reconcile(value, (subtask) => subtask.id);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ...switch (subtasksAsync) {
-          AsyncData(:final value) => value.map(
-            (subtask) => SubtaskTile(
-              key: ValueKey(subtask.id),
-              subtask: subtask,
-              onToggleDone: (isDone) => _toggleSub(subtask.id, isDone: isDone),
-              onDelete: () => _deleteSub(subtask.id),
+        // A nested reorderable: the subtask rows drag via an explicit grip
+        // (buildDefaultDragHandles: false) so they do not fight the outer task
+        // list's long-press drag; shrink-wrapped and non-scrolling because the
+        // outer list scrolls.
+        if (rows.isNotEmpty)
+          ReorderableListView.builder(
+            key: ValueKey('subtasks-$taskId'),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: rows.length,
+            onReorderItem: (oldIndex, newIndex) => _reorderSub(
+              rows.map((subtask) => subtask.id).toList(),
+              taskId,
+              oldIndex,
+              newIndex,
             ),
+            itemBuilder: (_, index) {
+              final subtask = rows[index];
+              return SubtaskTile(
+                key: ValueKey(subtask.id),
+                subtask: subtask,
+                onToggleDone: (isDone) =>
+                    _toggleSub(subtask.id, isDone: isDone),
+                onRename: () => _renameSub(subtask.id, subtask.title),
+                onDelete: () => _deleteSub(subtask.id),
+                dragHandle: ReorderableDragStartListener(
+                  index: index,
+                  child: const Icon(Icons.drag_indicator),
+                ),
+              );
+            },
           ),
-          _ => const [],
-        },
         Padding(
           padding: const EdgeInsets.only(left: 32, right: 16),
           child: TextField(
@@ -303,6 +334,41 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
     if (result case Err()) {
       _addController.text = title; // restore so a failed add can be retried
       showErrorSnackBar(context, 'Could not add the subtask');
+    }
+  }
+
+  Future<void> _renameSub(int id, String currentTitle) async {
+    final title = await showNameDialog(
+      context,
+      title: 'Rename subtask',
+      submitLabel: 'Save',
+      initialValue: currentTitle,
+    );
+    if (title == null || !mounted) return;
+    final result = await ref
+        .read(subtaskControllerProvider.notifier)
+        .rename(id, title);
+    if (!mounted) return;
+    if (result case Err()) {
+      showErrorSnackBar(context, 'Could not rename the subtask');
+    }
+  }
+
+  Future<void> _reorderSub(
+    List<int> currentIds,
+    int taskId,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final ids = reorderedIds(currentIds, oldIndex, newIndex);
+    setState(() => _subOrder.apply(ids)); // show the new order this frame
+    final result = await ref
+        .read(subtaskControllerProvider.notifier)
+        .reorder(taskId, ids);
+    if (!mounted) return;
+    if (result case Err()) {
+      setState(_subOrder.clear); // write failed — fall back to the stream
+      showErrorSnackBar(context, 'Could not reorder the subtasks');
     }
   }
 

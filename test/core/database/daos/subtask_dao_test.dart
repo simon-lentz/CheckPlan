@@ -41,22 +41,39 @@ void main() {
     await expectation;
   });
 
+  test('completing the last subtask auto-completes the parent', () async {
+    final task = await seedTask();
+    final s1 = await subtasks.add(task, 'a');
+    final s2 = await subtasks.add(task, 'b');
+
+    await subtasks.setDone(s1, isDone: true);
+    var parent = await (db.select(
+      db.tasks,
+    )..where((t) => t.id.equals(task))).getSingle();
+    expect(parent.isDone, isFalse); // not all done yet
+
+    await subtasks.setDone(s2, isDone: true);
+    parent = await (db.select(
+      db.tasks,
+    )..where((t) => t.id.equals(task))).getSingle();
+    expect(parent.isDone, isTrue); // last subtask completed -> parent done
+
+    final views = await tasks.watchForChecklist(parent.checklistId).first;
+    expect(views.single.subtaskProgress, (2, 2));
+  });
+
   test(
-    'toggling all subtasks done does not change the parent task isDone',
+    'unchecking a subtask does not reopen an auto-completed parent',
     () async {
       final task = await seedTask();
       final s1 = await subtasks.add(task, 'a');
-      final s2 = await subtasks.add(task, 'b');
       await subtasks.setDone(s1, isDone: true);
-      await subtasks.setDone(s2, isDone: true);
+      await subtasks.setDone(s1, isDone: false);
 
       final parent = await (db.select(
         db.tasks,
       )..where((t) => t.id.equals(task))).getSingle();
-      expect(parent.isDone, isFalse);
-
-      final views = await tasks.watchForChecklist(parent.checklistId).first;
-      expect(views.single.subtaskProgress, (2, 2));
+      expect(parent.isDone, isTrue); // forward-only: stays done
     },
   );
 

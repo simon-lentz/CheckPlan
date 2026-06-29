@@ -75,4 +75,36 @@ void main() {
 
     expect(find.text('Overdue 2d'), findsOneWidget);
   });
+
+  testWidgets('shows a one-line notes preview when the task has notes', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('L');
+    final id = await db.taskDao.add(list, 'Task');
+    await db.taskDao.edit(
+      id,
+      title: 'Task',
+      notes: 'buy oat milk',
+      dueDay: null,
+    );
+    final task = await db.readSingleTask();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TaskTile(
+            today: today,
+            expanded: false,
+            onToggleExpanded: () {},
+            onEdit: () {},
+            view: TaskView(task: task, subtaskProgress: (0, 0)),
+            onToggleDone: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('buy oat milk'), findsOneWidget);
+  });
 }

@@ -94,7 +94,7 @@ class _TodayTaskTileState extends State<TodayTaskTile>
         child: ListTile(
           isThreeLine: notes.isNotEmpty,
           leading: LabeledCheckbox(
-            label: 'Toggle "${entry.task.title}" done',
+            label: toggleDoneLabel(entry.task.title),
             value: _completing,
             onChanged: (_) => _complete(),
           ),

@@ -117,4 +117,53 @@ void main() {
     final subtasks = await db.select(db.subtasks).get();
     expect(subtasks.single.title.length, maxTitleLength);
   });
+
+  testWidgets('tapping a subtask renames it via the shared dialog', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('List');
+    final taskId = await db.taskDao.add(list, 'Task');
+    await db.subtaskDao.add(taskId, 'old');
+    await pumpChecklistDetailScreen(tester, db: db, checklistId: list);
+
+    await tester.tap(find.byIcon(Icons.expand_more));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('old'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'new');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('new'), findsOneWidget);
+    expect(find.text('old'), findsNothing);
+  });
+
+  testWidgets('dragging a subtask grip persists the new order', (tester) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('List');
+    final taskId = await db.taskDao.add(list, 'Task');
+    final a = await db.subtaskDao.add(taskId, 'a');
+    final b = await db.subtaskDao.add(taskId, 'b');
+    await pumpChecklistDetailScreen(tester, db: db, checklistId: list);
+
+    await tester.tap(find.byIcon(Icons.expand_more));
+    await tester.pumpAndSettle();
+
+    // Drive the callback directly (a bare drag is a long-press the tester won't
+    // perform); onReorderItem already adjusts newIndex. The inner subtask list
+    // is keyed so it is unambiguous against the outer task ReorderableListView.
+    final inner = tester.widget<ReorderableListView>(
+      find.byKey(ValueKey('subtasks-$taskId')),
+    );
+    inner.onReorderItem!(0, 1);
+    await tester.pumpAndSettle();
+
+    final order = tester
+        .widgetList<SubtaskTile>(find.byType(SubtaskTile))
+        .map((tile) => (tile.key! as ValueKey<int>).value)
+        .toList();
+    expect(order, [b, a]);
+  });
 }

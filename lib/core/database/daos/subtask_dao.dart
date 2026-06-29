@@ -1,12 +1,13 @@
 import 'package:checkplan/core/database/app_database.dart';
 import 'package:checkplan/core/database/dao_support.dart';
 import 'package:checkplan/core/database/tables/subtasks.dart';
+import 'package:checkplan/core/database/tables/tasks.dart';
 import 'package:drift/drift.dart';
 
 part 'subtask_dao.g.dart';
 
 /// Reads and writes subtasks, exposing a reactive per-task list.
-@DriftAccessor(tables: [Subtasks])
+@DriftAccessor(tables: [Subtasks, Tasks])
 class SubtaskDao extends DatabaseAccessor<AppDatabase>
     with _$SubtaskDaoMixin, PositioningDao {
   /// Binds the DAO to its attached database.
@@ -48,13 +49,30 @@ class SubtaskDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// Sets the subtask's completion flag.
-  Future<int> setDone(int id, {required bool isDone}) =>
-      (update(subtasks)..where((s) => s.id.equals(id))).write(
-        SubtasksCompanion(
-          isDone: Value(isDone),
-          updatedAt: Value(DateTime.timestamp()),
-        ),
-      );
+  ///
+  /// Forward-only auto-complete: completing the last open subtask of a task
+  /// marks the parent task done, in the same transaction. Un-completing a
+  /// subtask never reopens the parent — the manual task checkbox stays the way
+  /// to reopen a completed task.
+  Future<void> setDone(int id, {required bool isDone}) => transaction(() async {
+    final now = DateTime.timestamp();
+    await (update(subtasks)..where((s) => s.id.equals(id))).write(
+      SubtasksCompanion(isDone: Value(isDone), updatedAt: Value(now)),
+    );
+    if (!isDone) return; // forward-only: only cascade on completion
+    final row = await (select(
+      subtasks,
+    )..where((s) => s.id.equals(id))).getSingleOrNull();
+    if (row == null) return;
+    final openCount = subtasks.id.count(filter: subtasks.isDone.equals(false));
+    final query = selectOnly(subtasks)
+      ..addColumns([openCount])
+      ..where(subtasks.taskId.equals(row.taskId));
+    if ((await query.getSingle()).read(openCount) != 0) return;
+    await (update(tasks)..where((t) => t.id.equals(row.taskId))).write(
+      TasksCompanion(isDone: const Value(true), updatedAt: Value(now)),
+    );
+  });
 
   /// Renames the subtask with the given id.
   Future<int> rename(int id, String title) =>
