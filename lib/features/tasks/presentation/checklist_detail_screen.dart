@@ -94,7 +94,36 @@ class _TaskList extends ConsumerStatefulWidget {
   ConsumerState<_TaskList> createState() => _TaskListState();
 }
 
-class _TaskListState extends ConsumerState<_TaskList> {
+/// Shared optimistic-reorder protocol for the task and subtask lists: reflect a
+/// just-dropped order immediately, persist it, and roll back to the stream's
+/// order with an error snackbar if the write fails. Mixed into both
+/// [_TaskListState] and [_TaskItemState] so the protocol lives in one place.
+mixin _OptimisticReorder<T extends StatefulWidget> on State<T> {
+  /// Applies a drag-drop reorder of [currentIds] (moving [oldIndex] to
+  /// [newIndex]) through [order] optimistically, persists it via [persist], and
+  /// restores the stream's order with [errorMessage] if the write returns an
+  /// [Err].
+  Future<void> applyReorder({
+    required List<int> currentIds,
+    required int oldIndex,
+    required int newIndex,
+    required OptimisticOrder order,
+    required Future<Result<void>> Function(List<int> ids) persist,
+    required String errorMessage,
+  }) async {
+    final ids = reorderedIds(currentIds, oldIndex, newIndex);
+    setState(() => order.apply(ids)); // show the new order this frame
+    final result = await persist(ids);
+    if (!mounted) return;
+    if (result case Err()) {
+      setState(order.clear); // write failed — fall back to the stream's order
+      showErrorSnackBar(context, errorMessage);
+    }
+  }
+}
+
+class _TaskListState extends ConsumerState<_TaskList>
+    with _OptimisticReorder<_TaskList> {
   // Reflects a just-dropped reorder immediately, before the write round-trips
   // back through the stream — otherwise the list flickers the old order.
   final _order = OptimisticOrder();
@@ -132,26 +161,17 @@ class _TaskListState extends ConsumerState<_TaskList> {
     );
   }
 
-  Future<void> _reorder(
-    List<TaskView> tasks,
-    int oldIndex,
-    int newIndex,
-  ) async {
-    final ids = reorderedIds(
-      tasks.map((t) => t.task.id).toList(),
-      oldIndex,
-      newIndex,
-    );
-    setState(() => _order.apply(ids)); // show the new order this frame
-    final result = await ref
-        .read(taskControllerProvider.notifier)
-        .reorder(widget.checklistId, ids);
-    if (!mounted) return;
-    if (result case Err()) {
-      setState(_order.clear); // write failed — fall back to the stream's order
-      showErrorSnackBar(context, 'Could not reorder the tasks');
-    }
-  }
+  Future<void> _reorder(List<TaskView> tasks, int oldIndex, int newIndex) =>
+      applyReorder(
+        currentIds: tasks.map((t) => t.task.id).toList(),
+        oldIndex: oldIndex,
+        newIndex: newIndex,
+        order: _order,
+        persist: (ids) => ref
+            .read(taskControllerProvider.notifier)
+            .reorder(widget.checklistId, ids),
+        errorMessage: 'Could not reorder the tasks',
+      );
 
   // Confirms, then deletes, then always returns false: on success the reactive
   // stream removes the row (so the Dismissible never enters its dismissed state
@@ -214,7 +234,8 @@ class _TaskItem extends ConsumerStatefulWidget {
   ConsumerState<_TaskItem> createState() => _TaskItemState();
 }
 
-class _TaskItemState extends ConsumerState<_TaskItem> {
+class _TaskItemState extends ConsumerState<_TaskItem>
+    with _OptimisticReorder<_TaskItem> {
   bool _expanded = false;
   final _addController = TextEditingController();
   // Reflects a just-dropped subtask reorder immediately, before the write
@@ -313,7 +334,7 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
                 key: ValueKey(subtask.id),
                 subtask: subtask,
                 onToggleDone: (isDone) =>
-                    _toggleSub(subtask.id, isDone: isDone),
+                    _toggleSub(subtask.id, subtask.taskId, isDone: isDone),
                 onRename: () => _renameSub(subtask.id, subtask.title),
                 onDelete: () => _deleteSub(subtask.id),
                 dragHandle: ReorderableDragStartListener(
@@ -384,23 +405,20 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
     int taskId,
     int oldIndex,
     int newIndex,
-  ) async {
-    final ids = reorderedIds(currentIds, oldIndex, newIndex);
-    setState(() => _subOrder.apply(ids)); // show the new order this frame
-    final result = await ref
-        .read(subtaskControllerProvider.notifier)
-        .reorder(taskId, ids);
-    if (!mounted) return;
-    if (result case Err()) {
-      setState(_subOrder.clear); // write failed — fall back to the stream
-      showErrorSnackBar(context, 'Could not reorder the subtasks');
-    }
-  }
+  ) => applyReorder(
+    currentIds: currentIds,
+    oldIndex: oldIndex,
+    newIndex: newIndex,
+    order: _subOrder,
+    persist: (ids) =>
+        ref.read(subtaskControllerProvider.notifier).reorder(taskId, ids),
+    errorMessage: 'Could not reorder the subtasks',
+  );
 
-  Future<void> _toggleSub(int id, {required bool isDone}) async {
+  Future<void> _toggleSub(int id, int taskId, {required bool isDone}) async {
     final result = await ref
         .read(subtaskControllerProvider.notifier)
-        .setDone(id, isDone: isDone);
+        .setDone(id, taskId, isDone: isDone);
     if (!mounted) return;
     if (result case Err()) {
       showErrorSnackBar(context, 'Could not update the subtask');

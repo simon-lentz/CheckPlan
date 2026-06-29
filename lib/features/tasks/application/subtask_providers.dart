@@ -39,16 +39,13 @@ class SubtaskController extends _$SubtaskController {
 
   /// Adds a subtask to task [taskId] from the (trimmed) [title]; the [Ok] value
   /// is the new subtask's id. Rejects an empty or over-length [title].
-  Future<Result<int>> add(int taskId, String title) {
-    final error = titleError(title);
-    if (error != null) return Future.value(Err(ValidationException(error)));
-    return Result.guard(() => _dao.add(taskId, title.trim()));
-  }
+  Future<Result<int>> add(int taskId, String title) =>
+      guardTitle(title, (title) => _dao.add(taskId, title));
 
-  /// Sets subtask [id]'s completion flag.
-  Future<Result<void>> setDone(int id, {required bool isDone}) =>
+  /// Sets subtask [id]'s completion flag; [taskId] is its parent task.
+  Future<Result<void>> setDone(int id, int taskId, {required bool isDone}) =>
       Result.guard(() async {
-        await _dao.setDone(id, isDone: isDone);
+        await _dao.setDone(id, taskId, isDone: isDone);
       });
 
   /// Permanently deletes subtask [id].
@@ -58,13 +55,10 @@ class SubtaskController extends _$SubtaskController {
 
   /// Renames subtask [id] to the (trimmed) [title]. Rejects an empty or
   /// over-length [title].
-  Future<Result<void>> rename(int id, String title) {
-    final error = titleError(title);
-    if (error != null) return Future.value(Err(ValidationException(error)));
-    return Result.guard(() async {
-      await _dao.rename(id, title.trim());
-    });
-  }
+  Future<Result<void>> rename(int id, String title) =>
+      guardTitle(title, (title) async {
+        await _dao.rename(id, title);
+      });
 
   /// Rewrites subtask positions within [taskId] to match [orderedIds].
   Future<Result<void>> reorder(int taskId, List<int> orderedIds) =>

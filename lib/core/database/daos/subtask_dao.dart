@@ -48,31 +48,35 @@ class SubtaskDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  /// Sets the subtask's completion flag.
+  /// Sets subtask [id]'s completion flag; [taskId] is its parent task,
+  /// supplied by the caller so the cascade below needs no row re-read.
   ///
   /// Forward-only auto-complete: completing the last open subtask of a task
   /// marks the parent task done, in the same transaction. Un-completing a
   /// subtask never reopens the parent — the manual task checkbox stays the way
   /// to reopen a completed task.
-  Future<void> setDone(int id, {required bool isDone}) => transaction(() async {
-    final now = DateTime.timestamp();
-    await (update(subtasks)..where((s) => s.id.equals(id))).write(
-      SubtasksCompanion(isDone: Value(isDone), updatedAt: Value(now)),
-    );
-    if (!isDone) return; // forward-only: only cascade on completion
-    final row = await (select(
-      subtasks,
-    )..where((s) => s.id.equals(id))).getSingleOrNull();
-    if (row == null) return;
-    final openCount = subtasks.id.count(filter: subtasks.isDone.equals(false));
-    final query = selectOnly(subtasks)
-      ..addColumns([openCount])
-      ..where(subtasks.taskId.equals(row.taskId));
-    if ((await query.getSingle()).read(openCount) != 0) return;
-    await (update(tasks)..where((t) => t.id.equals(row.taskId))).write(
-      TasksCompanion(isDone: const Value(true), updatedAt: Value(now)),
-    );
-  });
+  Future<void> setDone(int id, int taskId, {required bool isDone}) =>
+      transaction(() async {
+        final now = DateTime.timestamp();
+        final updated = await (update(subtasks)..where((s) => s.id.equals(id)))
+            .write(
+              SubtasksCompanion(isDone: Value(isDone), updatedAt: Value(now)),
+            );
+        // Forward-only, and only for a row that existed: write reports 0
+        // affected rows for an absent id, so an already-deleted subtask does
+        // not cascade to the parent.
+        if (!isDone || updated == 0) return;
+        final openCount = subtasks.id.count(
+          filter: subtasks.isDone.equals(false),
+        );
+        final query = selectOnly(subtasks)
+          ..addColumns([openCount])
+          ..where(subtasks.taskId.equals(taskId));
+        if ((await query.getSingle()).read(openCount) != 0) return;
+        await (update(tasks)..where((t) => t.id.equals(taskId))).write(
+          TasksCompanion(isDone: const Value(true), updatedAt: Value(now)),
+        );
+      });
 
   /// Renames the subtask with the given id.
   Future<int> rename(int id, String title) =>

@@ -48,26 +48,16 @@ class ChecklistController extends _$ChecklistController {
   /// Rejects an empty or over-length [title] with an [Err] wrapping a
   /// [ValidationException] before the database is touched ([titleError] is the
   /// authoritative check; the DB length constraint is only a backstop).
-  Future<Result<int>> create(String title) {
-    final error = titleError(title);
-    if (error != null) {
-      return Future.value(Err(ValidationException(error)));
-    }
-    return Result.guard(() => _dao.create(title.trim()));
-  }
+  Future<Result<int>> create(String title) =>
+      guardTitle(title, (title) => _dao.create(title));
 
   /// Renames the checklist [id] to the trimmed [title].
   ///
   /// Rejects an empty or over-length [title] like [create].
-  Future<Result<void>> rename(int id, String title) {
-    final error = titleError(title);
-    if (error != null) {
-      return Future.value(Err(ValidationException(error)));
-    }
-    return Result.guard(() async {
-      await _dao.rename(id, title.trim());
-    });
-  }
+  Future<Result<void>> rename(int id, String title) =>
+      guardTitle(title, (title) async {
+        await _dao.rename(id, title);
+      });
 
   /// Sets or clears the checklist [id]'s ARGB theme color.
   Future<Result<void>> setColor(int id, int? colorValue) =>

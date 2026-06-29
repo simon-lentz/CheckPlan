@@ -46,13 +46,13 @@ void main() {
     final s1 = await subtasks.add(task, 'a');
     final s2 = await subtasks.add(task, 'b');
 
-    await subtasks.setDone(s1, isDone: true);
+    await subtasks.setDone(s1, task, isDone: true);
     var parent = await (db.select(
       db.tasks,
     )..where((t) => t.id.equals(task))).getSingle();
     expect(parent.isDone, isFalse); // not all done yet
 
-    await subtasks.setDone(s2, isDone: true);
+    await subtasks.setDone(s2, task, isDone: true);
     parent = await (db.select(
       db.tasks,
     )..where((t) => t.id.equals(task))).getSingle();
@@ -67,8 +67,8 @@ void main() {
     () async {
       final task = await seedTask();
       final s1 = await subtasks.add(task, 'a');
-      await subtasks.setDone(s1, isDone: true);
-      await subtasks.setDone(s1, isDone: false);
+      await subtasks.setDone(s1, task, isDone: true);
+      await subtasks.setDone(s1, task, isDone: false);
 
       final parent = await (db.select(
         db.tasks,

@@ -3,6 +3,7 @@ import 'package:checkplan/core/database/summaries.dart';
 import 'package:checkplan/core/model/due_status.dart';
 import 'package:checkplan/core/widgets/due_date_chip.dart';
 import 'package:checkplan/core/widgets/labeled_checkbox.dart';
+import 'package:checkplan/core/widgets/notes_preview.dart';
 import 'package:flutter/material.dart';
 
 /// A single Today row: a done checkbox, the task title, its parent checklist,
@@ -136,8 +137,7 @@ class _TodayTaskTileState extends State<TodayTaskTile>
             ],
           ],
         ),
-        if (notes.isNotEmpty)
-          Text(notes, maxLines: 1, overflow: TextOverflow.ellipsis),
+        if (notes.isNotEmpty) NotesPreview(notes),
       ],
     );
   }

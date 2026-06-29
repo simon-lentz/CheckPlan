@@ -3,6 +3,7 @@ import 'package:checkplan/core/model/due_status.dart';
 import 'package:checkplan/core/time/epoch_day.dart';
 import 'package:checkplan/core/widgets/due_date_chip.dart';
 import 'package:checkplan/core/widgets/labeled_checkbox.dart';
+import 'package:checkplan/core/widgets/notes_preview.dart';
 import 'package:flutter/material.dart';
 
 /// A single task row: a done checkbox, the title, a due-date chip when the task
@@ -86,7 +87,7 @@ class TaskTile extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         ?dueChip,
-        Text(notes, maxLines: 1, overflow: TextOverflow.ellipsis),
+        NotesPreview(notes),
       ],
     );
   }

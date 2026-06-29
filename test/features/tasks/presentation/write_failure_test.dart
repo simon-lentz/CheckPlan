@@ -37,9 +37,18 @@ class _FailingSubtaskController extends SubtaskController {
   @override
   Future<Result<int>> add(int taskId, String title) async => _boom();
   @override
-  Future<Result<void>> setDone(int id, {required bool isDone}) async => _boom();
+  Future<Result<void>> setDone(
+    int id,
+    int taskId, {
+    required bool isDone,
+  }) async => _boom();
   @override
   Future<Result<void>> delete(int id) async => _boom();
+  @override
+  Future<Result<void>> rename(int id, String title) async => _boom();
+  @override
+  Future<Result<void>> reorder(int taskId, List<int> orderedIds) async =>
+      _boom();
 }
 
 void main() {
@@ -200,5 +209,54 @@ void main() {
     await tester.tap(find.byIcon(Icons.close)); // the subtask's delete button
     await tester.pumpAndSettle();
     expect(find.text('Could not delete the subtask'), findsOneWidget);
+  });
+
+  testWidgets('rename-subtask failure shows an error', (tester) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('List');
+    final taskId = await db.taskDao.add(list, 'Task');
+    await db.subtaskDao.add(taskId, 'Step');
+    await pumpChecklistDetailScreen(
+      tester,
+      db: db,
+      checklistId: list,
+      overrides: [
+        subtaskControllerProvider.overrideWith(_FailingSubtaskController.new),
+      ],
+    );
+    await tester.tap(find.byIcon(Icons.expand_more));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Step')); // open the rename dialog
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Renamed');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.text('Could not rename the subtask'), findsOneWidget);
+  });
+
+  testWidgets('reorder-subtask failure shows an error', (tester) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('List');
+    final taskId = await db.taskDao.add(list, 'Task');
+    await db.subtaskDao.add(taskId, 'a');
+    await db.subtaskDao.add(taskId, 'b');
+    await pumpChecklistDetailScreen(
+      tester,
+      db: db,
+      checklistId: list,
+      overrides: [
+        subtaskControllerProvider.overrideWith(_FailingSubtaskController.new),
+      ],
+    );
+    await tester.tap(find.byIcon(Icons.expand_more));
+    await tester.pumpAndSettle();
+    // Drive the callback directly: a bare drag is a long-press the tester
+    // won't perform, and the inner list is keyed against the outer one.
+    final inner = tester.widget<ReorderableListView>(
+      find.byKey(ValueKey('subtasks-$taskId')),
+    );
+    inner.onReorderItem!(0, 1);
+    await tester.pumpAndSettle();
+    expect(find.text('Could not reorder the subtasks'), findsOneWidget);
   });
 }
