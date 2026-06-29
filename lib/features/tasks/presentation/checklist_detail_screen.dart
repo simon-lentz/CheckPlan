@@ -33,12 +33,9 @@ class ChecklistDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summary = switch (ref.watch(checklistByIdProvider(checklistId))) {
-      AsyncData(:final value) => value,
-      _ => null,
-    };
-    final title = summary?.checklist.title ?? 'Checklist';
-    final colorValue = summary?.checklist.colorValue;
+    final checklist = ref.watch(checklistByIdProvider(checklistId));
+    final title = checklist?.title ?? 'Checklist';
+    final colorValue = checklist?.colorValue;
     final barColor = colorValue == null ? null : Color(colorValue);
     final tasksAsync = ref.watch(tasksForChecklistProvider(checklistId));
     return Scaffold(
@@ -108,6 +105,11 @@ class _TaskListState extends ConsumerState<_TaskList> {
     final tasks = _order.reconcile(widget.tasks, (view) => view.task.id);
     return ReorderableListView.builder(
       itemCount: tasks.length,
+      // Each task carries its own drag region, scoped to the tile in
+      // `_TaskItem`. With the default whole-item handle, a long-press anywhere
+      // on an expanded task — including its nested subtask rows — would start a
+      // parent reorder; scoping it to the tile stops that hijack.
+      buildDefaultDragHandles: false,
       onReorderItem: (oldIndex, newIndex) =>
           _reorder(tasks, oldIndex, newIndex),
       // The row handlers below use this State's context (not a per-row builder
@@ -117,6 +119,7 @@ class _TaskListState extends ConsumerState<_TaskList> {
         final view = tasks[index];
         return _TaskItem(
           key: ValueKey(view.task.id),
+          index: index,
           view: view,
           today: today,
           onToggleDone: (isDone) =>
@@ -190,6 +193,7 @@ class _TaskListState extends ConsumerState<_TaskList> {
 /// subtasks and an inline add field. Expansion is local view state.
 class _TaskItem extends ConsumerStatefulWidget {
   const _TaskItem({
+    required this.index,
     required this.view,
     required this.today,
     required this.onToggleDone,
@@ -198,6 +202,8 @@ class _TaskItem extends ConsumerStatefulWidget {
     super.key,
   });
 
+  /// This task's position in the outer list, for its drag-start listener.
+  final int index;
   final TaskView view;
   final EpochDay today;
   final ValueChanged<bool> onToggleDone;
@@ -228,31 +234,38 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Dismissible(
-          key: ValueKey('dismiss-${task.id}'),
-          direction: DismissDirection.endToStart,
-          background: ColoredBox(
-            color: scheme.errorContainer,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 16),
-                child: Icon(Icons.delete, color: scheme.onErrorContainer),
+        // Only the tile is a drag region — the subtask sublist below is
+        // deliberately outside it, so a long-press on a subtask cannot start a
+        // parent task reorder. The listener is invisible, so the tile renders
+        // and long-press-reorders exactly as it did under the default handle.
+        ReorderableDelayedDragStartListener(
+          index: widget.index,
+          child: Dismissible(
+            key: ValueKey('dismiss-${task.id}'),
+            direction: DismissDirection.endToStart,
+            background: ColoredBox(
+              color: scheme.errorContainer,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 16),
+                  child: Icon(Icons.delete, color: scheme.onErrorContainer),
+                ),
               ),
             ),
-          ),
-          // See `_confirmAndDelete` on `_TaskList`: it deletes then returns
-          // false, so the row leaves via the reactive stream, never via the
-          // Dismissible's dismissed state.
-          confirmDismiss: (_) => widget.confirmAndDelete(),
-          child: TaskTile(
-            key: ValueKey(task.id),
-            view: widget.view,
-            today: widget.today,
-            onToggleDone: widget.onToggleDone,
-            onEdit: widget.onEdit,
-            expanded: _expanded,
-            onToggleExpanded: () => setState(() => _expanded = !_expanded),
+            // See `_confirmAndDelete` on `_TaskList`: it deletes then returns
+            // false, so the row leaves via the reactive stream, never via the
+            // Dismissible's dismissed state.
+            confirmDismiss: (_) => widget.confirmAndDelete(),
+            child: TaskTile(
+              key: ValueKey(task.id),
+              view: widget.view,
+              today: widget.today,
+              onToggleDone: widget.onToggleDone,
+              onEdit: widget.onEdit,
+              expanded: _expanded,
+              onToggleExpanded: () => setState(() => _expanded = !_expanded),
+            ),
           ),
         ),
         AnimatedSize(
@@ -305,7 +318,16 @@ class _TaskItemState extends ConsumerState<_TaskItem> {
                 onDelete: () => _deleteSub(subtask.id),
                 dragHandle: ReorderableDragStartListener(
                   index: index,
-                  child: const Icon(Icons.drag_indicator),
+                  // The grip recognizes drags, not taps; without this a bare
+                  // tap falls through to the row's onTap (rename). Claim and
+                  // discard taps here so only drags reach the reorderable.
+                  // excludeFromSemantics keeps it out of the a11y tree (no
+                  // unlabeled tappable node).
+                  child: GestureDetector(
+                    onTap: () {},
+                    excludeFromSemantics: true,
+                    child: const Icon(Icons.drag_indicator),
+                  ),
                 ),
               );
             },

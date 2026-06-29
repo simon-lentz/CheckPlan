@@ -1,8 +1,13 @@
+import 'package:checkplan/core/database/app_database.dart';
 import 'package:checkplan/core/database/daos/checklist_dao.dart';
 import 'package:checkplan/core/database/database_providers.dart';
 import 'package:checkplan/core/database/summaries.dart';
 import 'package:checkplan/core/result.dart';
 import 'package:checkplan/core/validation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show Provider, StreamProvider;
+import 'package:flutter_riverpod/misc.dart'
+    show ProviderFamily, StreamProviderFamily;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'checklist_providers.g.dart';
@@ -91,11 +96,38 @@ class ChecklistController extends _$ChecklistController {
   });
 }
 
-/// The summary for one checklist by [id] — title, color, and task progress —
-/// resolved directly from the database via [ChecklistDao.watchById], so it is
-/// correct for an archived checklist or a cold deep-link, not only for a
-/// checklist already in the active list. `autoDispose` (the codegen default)
-/// like the other detail reads.
-@riverpod
-Stream<ChecklistSummary?> checklistById(Ref ref, int id) =>
-    ref.watch(checklistDaoProvider).watchById(id);
+/// The live checklist row for the given id, resolved by id so it is correct
+/// for an archived checklist or a cold deep-link, not only one already in the
+/// active list. Hand-written rather than `@riverpod` because its value type
+/// names the drift row class [Checklist], which `riverpod_generator` cannot
+/// resolve from another file's generated part (the same limit that makes
+/// `subtasksForTaskProvider` hand-written). `autoDispose` like the other detail
+/// reads.
+final StreamProviderFamily<Checklist?, int> checklistRowByIdProvider =
+    StreamProvider.autoDispose.family<Checklist?, int>(
+      (ref, id) => ref.watch(checklistDaoProvider).watchRowById(id),
+    );
+
+/// The checklist row backing the detail app bar's title and color.
+///
+/// Returns the by-id row stream's value once it has emitted; until then it
+/// seeds from the warm [activeChecklistsProvider] row, so navigating from the
+/// list renders the real title and color on the first frame instead of
+/// flashing the fallback while the stream's first emission is in flight. A
+/// checklist absent from the active list (archived, or a cold deep-link) has no
+/// seed and resolves when the stream emits. Hand-written for the same reason as
+/// [checklistRowByIdProvider].
+final ProviderFamily<Checklist?, int> checklistByIdProvider = Provider
+    .autoDispose
+    .family<Checklist?, int>((ref, id) {
+      // The authoritative reactive source, once it has emitted.
+      final row = ref.watch(checklistRowByIdProvider(id)).value;
+      if (row != null) return row;
+      // First-frame seed (and loading fallback): the warm active-list row.
+      for (final summary
+          in ref.watch(activeChecklistsProvider).value ??
+              const <ChecklistSummary>[]) {
+        if (summary.checklist.id == id) return summary.checklist;
+      }
+      return null;
+    });
