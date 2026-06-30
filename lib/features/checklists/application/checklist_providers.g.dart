@@ -208,7 +208,7 @@ final class ChecklistControllerProvider
 }
 
 String _$checklistControllerHash() =>
-    r'4b09444d08cc0376c34e92ff100d264107183022';
+    r'bf4e13f5f3f67349c0a3f324467205b76343d454';
 
 /// Write commands for checklists.
 ///
