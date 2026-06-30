@@ -44,10 +44,11 @@ key, set in `build.yaml`). The matching schema-test fixtures live under `test/dr
                },
              ),
            ));
-       if (kDebugMode) {
-         final bad = await customSelect('PRAGMA foreign_key_check').get();
-         assert(bad.isEmpty, '${bad.map((e) => e.data)}');
-       }
+       // Run the FK check unconditionally (cheap, one-time); the assert strips
+       // in release. Avoid kDebugMode so app_database.dart stays Flutter-free
+       // and schema dump needs no --export-schema-startup-code workaround.
+       final bad = await customSelect('PRAGMA foreign_key_check').get();
+       assert(bad.isEmpty, '${bad.map((e) => e.data)}');
        await customStatement('PRAGMA foreign_keys = ON');
      },
      beforeOpen: (details) async {
