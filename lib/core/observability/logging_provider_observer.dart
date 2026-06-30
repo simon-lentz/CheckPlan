@@ -1,11 +1,12 @@
 import 'dart:developer' as developer;
 
+import 'package:flutter_riverpod/experimental/mutation.dart' show Mutation;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// A [ProviderObserver] that logs provider lifecycle and state changes — a thin
-/// development aid for debugging reactivity. It is registered in debug builds
-/// via `ProviderScope(observers: …)`; each event is written to [sink], which
-/// defaults to the `dart:developer` log under the `riverpod` name.
+/// A [ProviderObserver] that logs provider and mutation lifecycle and state
+/// changes — a thin development aid for debugging reactivity. It is registered
+/// in debug builds via `ProviderScope(observers: …)`; each event is written to
+/// [sink], which defaults to the `dart:developer` log named `riverpod`.
 final class LoggingProviderObserver extends ProviderObserver {
   /// Creates the observer. The app uses the default `dart:developer` logger;
   /// tests inject a capturing [sink].
@@ -31,15 +32,18 @@ final class LoggingProviderObserver extends ProviderObserver {
   String _name(ProviderObserverContext context) =>
       context.provider.name ?? context.provider.runtimeType.toString();
 
-  // Cap a logged value so a large object can't flood the log. Truncate on a
-  // code-point boundary (via runes) so a surrogate pair at the cut is not split
-  // into a lone surrogate that renders as a replacement glyph. toString() runs
-  // in full before truncating — unavoidable to preview a value, and cheap
-  // enough for an observer registered only in debug builds.
+  // Cap a logged value so a large object can't flood the log. Measure and cut
+  // on the same unit — runes (code points). Cutting on a rune boundary keeps a
+  // surrogate pair intact, and measuring the threshold in runes too means the
+  // ellipsis is appended only when runes were actually dropped — a code-unit
+  // length test over-counts astral characters and would flag a string that fit.
+  // The bounded take walks at most 81 runes, not the whole string. toString()
+  // still runs fully to preview the value — cheap enough for a debug observer.
   String _brief(Object? value) {
     final text = value.toString();
-    if (text.length <= 80) return text;
-    return '${String.fromCharCodes(text.runes.take(77))}…';
+    final head = text.runes.take(81).toList();
+    if (head.length <= 80) return text;
+    return '${String.fromCharCodes(head.take(77))}…';
   }
 
   @override
@@ -69,4 +73,39 @@ final class LoggingProviderObserver extends ProviderObserver {
     error: error,
     stackTrace: stackTrace,
   );
+
+  @override
+  void mutationStart(
+    ProviderObserverContext context,
+    Mutation<Object?> mutation,
+  ) => sink('» ${_name(context)} mutation: started');
+
+  @override
+  void mutationSuccess(
+    ProviderObserverContext context,
+    Mutation<Object?> mutation,
+    Object? result,
+  ) => sink('« ${_name(context)} mutation: ${_brief(result)}');
+
+  // A mutation failure routes here, not to providerDidFail (which fires only
+  // for a provider's own build/emit failure), so without this override a
+  // failed reactive write would be dropped. Forwards the error and its
+  // originating stack trace to the sink's structured fields.
+  @override
+  void mutationError(
+    ProviderObserverContext context,
+    Mutation<Object?> mutation,
+    Object error,
+    StackTrace stackTrace,
+  ) => sink(
+    '! ${_name(context)} mutation threw: $error',
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  @override
+  void mutationReset(
+    ProviderObserverContext context,
+    Mutation<Object?> mutation,
+  ) => sink('· ${_name(context)} mutation: reset');
 }

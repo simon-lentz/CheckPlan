@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../../support/memory_db.dart';
 import '../../../support/pump_checklist_detail_screen.dart';
+import '../../../support/subtask_reorder.dart';
 
 /// A subtask controller whose `add` blocks on [release], so a test can hold the
 /// first write in flight and fire a second submit into the gap.
@@ -178,13 +179,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.expand_more));
     await tester.pumpAndSettle();
 
-    // Drive the callback directly (a bare drag is a long-press the tester won't
-    // perform); onReorderItem already adjusts newIndex. The inner subtask list
-    // is keyed so it is unambiguous against the outer task ReorderableListView.
-    final inner = tester.widget<ReorderableListView>(
-      find.byKey(ValueKey('subtasks-$taskId')),
-    );
-    inner.onReorderItem!(0, 1);
+    reorderSubtask(tester, taskId, 0, 1);
     await tester.pumpAndSettle();
 
     final order = tester

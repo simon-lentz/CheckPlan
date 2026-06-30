@@ -14,3 +14,9 @@ class NotesPreview extends StatelessWidget {
   Widget build(BuildContext context) =>
       Text(notes, maxLines: 1, overflow: TextOverflow.ellipsis);
 }
+
+/// A task's notes normalized for display: trimmed, with null collapsed to ''.
+/// The single source of the "no notes" rule (null or blank) shared by the task
+/// and Today tiles. An empty result hides the notes line; a non-empty one is
+/// safe to pass to [NotesPreview].
+String displayNotes(String? notes) => notes?.trim() ?? '';

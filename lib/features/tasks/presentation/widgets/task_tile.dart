@@ -51,7 +51,7 @@ class TaskTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final (done, total) = view.subtaskProgress;
     final status = dueStatusFor(view.task.dueDay, today);
-    final notes = view.task.notes?.trim() ?? '';
+    final notes = displayNotes(view.task.notes);
     return ListTile(
       onTap: onEdit,
       isThreeLine: notes.isNotEmpty,

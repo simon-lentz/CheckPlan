@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import '../../../support/memory_db.dart';
 import '../../../support/pump_checklist_detail_screen.dart';
+import '../../../support/subtask_reorder.dart';
 
 /// Task commands all fail, to drive the detail screen's error feedback while
 /// reads still come from a real in-memory DB so rows render to act on.
@@ -246,12 +247,7 @@ void main() {
     );
     await tester.tap(find.byIcon(Icons.expand_more));
     await tester.pumpAndSettle();
-    // Drive the callback directly: a bare drag is a long-press the tester
-    // won't perform, and the inner list is keyed against the outer one.
-    final inner = tester.widget<ReorderableListView>(
-      find.byKey(ValueKey('subtasks-$taskId')),
-    );
-    inner.onReorderItem!(0, 1);
+    reorderSubtask(tester, taskId, 0, 1);
     await tester.pumpAndSettle();
     expect(find.text('Could not reorder the subtasks'), findsOneWidget);
   });

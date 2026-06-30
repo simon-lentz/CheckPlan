@@ -86,7 +86,7 @@ class _TodayTaskTileState extends State<TodayTaskTile>
     final entry = widget.entry;
     final status = widget.status;
     final (done, total) = entry.subtaskProgress;
-    final notes = entry.task.notes?.trim() ?? '';
+    final notes = displayNotes(entry.task.notes);
     final hasExtras = total > 0 || notes.isNotEmpty;
     return SizeTransition(
       sizeFactor: _shrink,

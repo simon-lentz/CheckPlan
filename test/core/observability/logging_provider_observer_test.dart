@@ -1,4 +1,5 @@
 import 'package:checkplan/core/observability/logging_provider_observer.dart';
+import 'package:flutter_riverpod/experimental/mutation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:flutter_riverpod/misc.dart';
@@ -97,5 +98,65 @@ void main() {
       container.read(counter);
       container.read(counter.notifier).state = 1;
     }, returnsNormally);
+  });
+
+  test('does not append an ellipsis when the value fits in 80 runes', () {
+    final logs = <String>[];
+    // 41 astral characters: 82 UTF-16 code units but only 41 runes, so it fits
+    // the 80-rune cap and must render in full — a code-unit length test would
+    // wrongly truncate it and append a phantom ellipsis.
+    final value = '😀' * 41;
+    final provider = StateProvider<String>((ref) => value);
+    final container = ProviderContainer(
+      observers: [
+        LoggingProviderObserver(
+          sink: (message, {error, stackTrace}) => logs.add(message),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.read(provider);
+
+    final line = logs.firstWhere((l) => l.startsWith('+'));
+    expect(line.contains('…'), isFalse);
+    expect(line, contains(value));
+  });
+
+  test('logs a mutation lifecycle and its failure stack trace', () async {
+    final logs = <String>[];
+    StackTrace? capturedStack;
+    final container = ProviderContainer(
+      observers: [
+        LoggingProviderObserver(
+          sink: (message, {error, stackTrace}) {
+            logs.add(message);
+            if (stackTrace != null) capturedStack = stackTrace;
+          },
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    // A successful run -> start + success(result).
+    final ok = Mutation<int>();
+    await ok.run(container, (_) async => 42);
+    expect(logs.any((l) => l.contains('mutation: started')), isTrue);
+    expect(logs.any((l) => l.contains('mutation: 42')), isTrue);
+
+    // A failure routes to mutationError (not providerDidFail), and must be
+    // logged with its originating stack trace rather than dropped.
+    final boom = Mutation<void>();
+    try {
+      await boom.run(container, (_) async => throw StateError('boom'));
+    } on Object catch (_) {
+      // run rethrows; the observer has already logged the failure.
+    }
+    expect(logs.any((l) => l.startsWith('!') && l.contains('boom')), isTrue);
+    expect(capturedStack, isNotNull);
+
+    // Resetting clears the mutation's state -> reset.
+    ok.reset(container);
+    expect(logs.any((l) => l.contains('mutation: reset')), isTrue);
   });
 }
