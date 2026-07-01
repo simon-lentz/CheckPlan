@@ -138,6 +138,8 @@ void main() {
           subtaskProgress: (0, 0),
         ),
         status: const Overdue(1),
+        expanded: false,
+        onToggleExpanded: () {},
         onComplete: () async => true,
       ),
     );

@@ -66,7 +66,10 @@ class TaskTile extends StatelessWidget {
           LabeledCheckbox(
             label: toggleDoneLabel(view.task.title),
             value: view.task.isDone,
-            onChanged: onToggleDone,
+            // With subtasks, completion is derived from them (done ⟺ all done);
+            // show that state read-only so the checkbox can't contradict the
+            // progress hint.
+            onChanged: total > 0 ? null : onToggleDone,
           ),
         ],
       ),

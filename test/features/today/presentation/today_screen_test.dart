@@ -103,6 +103,65 @@ void main() {
     await tester.pumpAndSettle(); // let it finish leaving, for a clean teardown
   });
 
+  testWidgets('expanding a Today task reveals its subtasks', (tester) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('Errands');
+    final id = await db.taskDao.add(list, 'Pack');
+    await db.taskDao.setDueDate(id, today);
+    await db.subtaskDao.add(id, 'shirts');
+    await db.subtaskDao.add(id, 'shoes');
+    await pumpTodayScreen(tester, db: db, today: today);
+
+    expect(find.text('shirts'), findsNothing); // collapsed
+
+    await tester.tap(find.byIcon(Icons.expand_more));
+    await tester.pumpAndSettle();
+
+    expect(find.text('shirts'), findsOneWidget);
+    expect(find.text('shoes'), findsOneWidget);
+  });
+
+  testWidgets('a subtasked Today task shows a read-only own checkbox', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('Errands');
+    final id = await db.taskDao.add(list, 'Pack');
+    await db.taskDao.setDueDate(id, today);
+    await db.subtaskDao.add(id, 'only');
+    await pumpTodayScreen(tester, db: db, today: today);
+
+    // Collapsed: the only Checkbox is the task's own, and it is disabled.
+    expect(
+      tester.widget<Checkbox>(find.byType(Checkbox).first).onChanged,
+      isNull,
+    );
+  });
+
+  testWidgets('completing every subtask from Today removes the task', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('Errands');
+    final id = await db.taskDao.add(list, 'Pack');
+    await db.taskDao.setDueDate(id, today);
+    await db.subtaskDao.add(id, 'shirts');
+    await db.subtaskDao.add(id, 'shoes');
+    await pumpTodayScreen(tester, db: db, today: today);
+
+    await tester.tap(find.byIcon(Icons.expand_more));
+    await tester.pumpAndSettle();
+
+    // Checkboxes now: [parent (disabled), shirts, shoes]. Check the subtasks.
+    await tester.tap(find.byType(Checkbox).at(1)); // shirts
+    await tester.pumpAndSettle();
+    expect(find.text('Pack'), findsOneWidget); // one still open -> stays
+
+    await tester.tap(find.byType(Checkbox).last); // shoes
+    await tester.pumpAndSettle();
+    expect(find.text('Pack'), findsNothing); // all done -> left Today
+  });
+
   testWidgets('a failed completion keeps the Today row', (tester) async {
     final db = memoryDb();
     final list = await db.checklistDao.create('Errands');

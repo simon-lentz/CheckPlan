@@ -47,6 +47,23 @@ void main() {
     expect(toggled, isTrue);
   });
 
+  testWidgets('a null onChanged renders a disabled checkbox', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: LabeledCheckbox(
+            label: 'Toggle "Milk" done',
+            value: false,
+            onChanged: null,
+          ),
+        ),
+      ),
+    );
+
+    // A Material Checkbox with a null handler is disabled and non-interactive.
+    expect(tester.widget<Checkbox>(find.byType(Checkbox)).onChanged, isNull);
+  });
+
   test('toggleDoneLabel wraps the title in the standard a11y phrasing', () {
     expect(toggleDoneLabel('Apples'), 'Toggle "Apples" done');
   });

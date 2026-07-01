@@ -150,14 +150,28 @@ class TaskDao extends DatabaseAccessor<AppDatabase>
     ),
   );
 
-  /// Sets the task's own completion flag.
-  Future<int> setDone(int id, {required bool isDone}) =>
-      (update(tasks)..where((t) => t.id.equals(id))).write(
-        TasksCompanion(
-          isDone: Value(isDone),
-          updatedAt: Value(DateTime.timestamp()),
-        ),
-      );
+  /// Sets the task's own completion flag — but **only** for a task with no
+  /// subtasks. With subtasks, completion is derived (done ⟺ all subtasks
+  /// done), kept current by the subtask reconcile in `SubtaskDao`; a manual
+  /// set would let the checkbox contradict the subtask progress, so it is
+  /// ignored. The subtask count and the conditional write share one
+  /// transaction, so a subtask inserted concurrently can't slip between them.
+  /// Returns the rows written (0 when the task has subtasks).
+  Future<int> setDone(int id, {required bool isDone}) => transaction(() async {
+    final subtaskCount = subtasks.id.count();
+    final counted =
+        await (selectOnly(subtasks)
+              ..addColumns([subtaskCount])
+              ..where(subtasks.taskId.equals(id)))
+            .getSingle();
+    if ((counted.read(subtaskCount) ?? 0) > 0) return 0;
+    return (update(tasks)..where((t) => t.id.equals(id))).write(
+      TasksCompanion(
+        isDone: Value(isDone),
+        updatedAt: Value(DateTime.timestamp()),
+      ),
+    );
+  });
 
   /// Sets or clears the task's due date (a timezone-free [EpochDay]).
   Future<int> setDueDate(int id, EpochDay? dueDay) =>

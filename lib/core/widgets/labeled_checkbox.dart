@@ -28,8 +28,11 @@ class LabeledCheckbox extends StatelessWidget {
   /// Whether the checkbox is currently checked.
   final bool value;
 
-  /// Invoked with the new checked state when the user toggles the checkbox.
-  final ValueChanged<bool> onChanged;
+  /// Invoked with the new checked state when the user toggles the checkbox, or
+  /// `null` to render the checkbox **disabled** — used where the done-state is
+  /// derived and must not be set directly (a task whose completion is owned by
+  /// its subtasks).
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) => MergeSemantics(
@@ -37,7 +40,9 @@ class LabeledCheckbox extends StatelessWidget {
       label: label,
       child: Checkbox(
         value: value,
-        onChanged: (value) => onChanged(value ?? false),
+        onChanged: onChanged == null
+            ? null
+            : (value) => onChanged!(value ?? false),
       ),
     ),
   );

@@ -118,6 +118,30 @@ void main() {
     expect(cleared.task.notes, isNull);
   });
 
+  test('setDone leaves a subtasked task unchanged (derived)', () async {
+    final list = await checklists.create('List');
+    final id = await tasks.add(list, 'Parent');
+    // One open subtask makes the parent derived-open.
+    await db.subtaskDao.add(id, 'open');
+
+    // Ignored: with subtasks, completion is derived, not manually set.
+    final written = await tasks.setDone(id, isDone: true);
+    expect(written, 0);
+    final task = (await tasks.watchForChecklist(list).first).single.task;
+    // No contradiction with the 0/1 progress hint.
+    expect(task.isDone, isFalse);
+  });
+
+  test('setDone still toggles a task that has no subtasks', () async {
+    final list = await checklists.create('List');
+    final id = await tasks.add(list, 'Solo');
+
+    final written = await tasks.setDone(id, isDone: true);
+    expect(written, 1);
+    final task = (await tasks.watchForChecklist(list).first).single.task;
+    expect(task.isDone, isTrue);
+  });
+
   test('reorder moves a task to the head, before its old first', () async {
     final list = await checklists.create('List');
     final a = await tasks.add(list, 'a');

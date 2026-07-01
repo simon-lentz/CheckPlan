@@ -22,6 +22,8 @@ class TodayTaskTile extends StatefulWidget {
   const TodayTaskTile({
     required this.entry,
     required this.onComplete,
+    required this.expanded,
+    required this.onToggleExpanded,
     this.status,
     super.key,
   });
@@ -36,6 +38,12 @@ class TodayTaskTile extends StatefulWidget {
   /// The due status to show as a chip, or null to omit it — the Today section
   /// omits the chip because its header already says the tasks are due today.
   final DueStatus? status;
+
+  /// Whether this task's subtasks are currently expanded.
+  final bool expanded;
+
+  /// Invoked when the user toggles the expand affordance.
+  final VoidCallback onToggleExpanded;
 
   @override
   State<TodayTaskTile> createState() => _TodayTaskTileState();
@@ -86,19 +94,44 @@ class _TodayTaskTileState extends State<TodayTaskTile>
     final entry = widget.entry;
     final status = widget.status;
     final (done, total) = entry.subtaskProgress;
+    final hasSubtasks = total > 0;
     final notes = displayNotes(entry.task.notes);
-    final hasExtras = total > 0 || notes.isNotEmpty;
+    final hasExtras = hasSubtasks || notes.isNotEmpty;
     return SizeTransition(
       sizeFactor: _shrink,
       child: FadeTransition(
         opacity: _shrink,
         child: ListTile(
           isThreeLine: notes.isNotEmpty,
-          leading: LabeledCheckbox(
-            label: toggleDoneLabel(entry.task.title),
-            value: _completing,
-            onChanged: (_) => _complete(),
-          ),
+          // A subtask-less row keeps its original bare-checkbox leading (its
+          // golden unchanged); a subtasked row gains an expander and a
+          // read-only box — completion is derived from its subtasks, and it
+          // leaves Today only when they are all done.
+          leading: hasSubtasks
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        widget.expanded ? Icons.expand_less : Icons.expand_more,
+                      ),
+                      tooltip: widget.expanded
+                          ? 'Hide subtasks'
+                          : 'Show subtasks',
+                      onPressed: widget.onToggleExpanded,
+                    ),
+                    LabeledCheckbox(
+                      label: toggleDoneLabel(entry.task.title),
+                      value: entry.task.isDone,
+                      onChanged: null,
+                    ),
+                  ],
+                )
+              : LabeledCheckbox(
+                  label: toggleDoneLabel(entry.task.title),
+                  value: _completing,
+                  onChanged: (_) => _complete(),
+                ),
           title: Text(
             entry.task.title,
             style: _completing
