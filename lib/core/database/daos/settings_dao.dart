@@ -21,6 +21,17 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
           .watchSingleOrNull()
           .map((row) => row?.value);
 
+  /// The value stored under [key] right now, or `null` if unset — a one-shot
+  /// read (the non-reactive counterpart to [watchValue]). Used at startup to
+  /// resolve a setting before the first frame, where a stream would not have
+  /// emitted yet.
+  Future<String?> getValue(String key) async {
+    final row = await (select(
+      settings,
+    )..where((s) => s.key.equals(key))).getSingleOrNull();
+    return row?.value;
+  }
+
   /// Stores [value] under [key], inserting or replacing the existing row (the
   /// primary key is [key]).
   Future<void> setValue(String key, String value) => into(

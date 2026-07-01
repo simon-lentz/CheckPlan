@@ -6,13 +6,28 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// App settings — currently the theme-mode selector; later UI toggles and the
 /// account/sync section extend it.
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   /// Creates the settings screen.
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider).value ?? ThemeMode.system;
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  // The optimistically-selected mode: set the instant a segment is tapped so
+  // the highlight moves without waiting for the write to persist and the stream
+  // to re-emit. Cleared once the persisted value catches up (in build), so the
+  // store resumes as the source of truth for any later external change.
+  ThemeMode? _pending;
+
+  @override
+  Widget build(BuildContext context) {
+    final persisted = ref.watch(themeModeProvider).value ?? ThemeMode.system;
+    // Drop the optimistic override once the store reflects it, so a subsequent
+    // change to the setting from elsewhere is honored again.
+    if (_pending == persisted) _pending = null;
+    final selected = _pending ?? persisted;
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -27,9 +42,8 @@ class SettingsScreen extends ConsumerWidget {
                   ButtonSegment(value: ThemeMode.light, label: Text('Light')),
                   ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
                 ],
-                selected: {themeMode},
-                onSelectionChanged: (selected) =>
-                    _setThemeMode(context, ref, selected.first),
+                selected: {selected},
+                onSelectionChanged: (choice) => _setThemeMode(choice.first),
               ),
             ),
           ),
@@ -38,16 +52,16 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _setThemeMode(
-    BuildContext context,
-    WidgetRef ref,
-    ThemeMode mode,
-  ) async {
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    // Reflect the choice immediately, then persist. On failure, roll the
+    // optimistic highlight back to the stored value and surface the error.
+    setState(() => _pending = mode);
     final result = await ref
         .read(settingsControllerProvider.notifier)
         .setThemeMode(mode);
-    if (!context.mounted) return;
+    if (!mounted) return;
     if (result case Err()) {
+      setState(() => _pending = null);
       showErrorSnackBar(context, 'Could not update the theme');
     }
   }

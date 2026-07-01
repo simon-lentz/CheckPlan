@@ -38,4 +38,13 @@ void main() {
     await dao.setValue('theme_mode', 'light');
     await expectation;
   });
+
+  test('getValue returns null for an unset key', () async {
+    expect(await dao.getValue('theme_mode'), isNull);
+  });
+
+  test('getValue returns the stored value in a one-shot read', () async {
+    await dao.setValue('theme_mode', 'dark');
+    expect(await dao.getValue('theme_mode'), 'dark');
+  });
 }

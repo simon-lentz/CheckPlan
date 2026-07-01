@@ -9,7 +9,18 @@ import 'package:go_router/go_router.dart';
 /// follows the persisted theme mode.
 class CheckPlanApp extends ConsumerStatefulWidget {
   /// Creates the root application widget.
-  const CheckPlanApp({super.key});
+  ///
+  /// [initialThemeMode] seeds the first frame's theme — the value `main` reads
+  /// from the settings store before `runApp`, so an explicit (non-system)
+  /// persisted mode is honored immediately with no cold-start flash. It governs
+  /// only until [themeModeProvider]'s stream emits, after which the store is
+  /// the source of truth. Defaults to [ThemeMode.system] (the pre-persistence
+  /// launch default).
+  const CheckPlanApp({this.initialThemeMode = ThemeMode.system, super.key});
+
+  /// The theme mode applied on the first frame, before the persisted stream
+  /// emits. See the constructor.
+  final ThemeMode initialThemeMode;
 
   @override
   ConsumerState<CheckPlanApp> createState() => _CheckPlanAppState();
@@ -26,9 +37,12 @@ class _CheckPlanAppState extends ConsumerState<CheckPlanApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Until the persisted mode's stream first emits, use the system default —
-    // the app's prior behaviour — so there's no flash for the common case.
-    final themeMode = ref.watch(themeModeProvider).value ?? ThemeMode.system;
+    // Until the persisted mode's stream first emits, use the startup seed that
+    // main() resolved from the store before the first frame — so an explicit
+    // mode shows immediately, with no flash. After the stream emits, the store
+    // governs.
+    final themeMode =
+        ref.watch(themeModeProvider).value ?? widget.initialThemeMode;
     return MaterialApp.router(
       title: 'CheckPlan',
       theme: lightTheme,
