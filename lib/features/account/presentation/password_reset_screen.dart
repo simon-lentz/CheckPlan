@@ -1,4 +1,5 @@
 import 'package:checkplan/core/result.dart';
+import 'package:checkplan/core/widgets/form_error_text.dart';
 import 'package:checkplan/features/account/application/auth_providers.dart';
 import 'package:checkplan/features/account/application/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -43,14 +44,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(labelText: 'Email'),
           ),
-          if (_error case final message?)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                message,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ),
+          FormErrorText(_error),
           const SizedBox(height: 16),
           FilledButton(
             onPressed: _busy ? null : _submit,
@@ -76,7 +70,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
       case Err(:final error):
         setState(() {
           _busy = false;
-          _error = error is AuthFailure ? error.message : 'Could not send it';
+          _error = authFailureMessage(error, 'Could not send it');
         });
     }
   }

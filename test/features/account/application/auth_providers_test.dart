@@ -39,4 +39,22 @@ void main() {
     ).read(authControllerProvider.notifier).signIn('a@b.com', 'pw');
     expect(result, isA<Err<void>>());
   });
+
+  test('updatePassword returns Ok on success', () async {
+    final fake = FakeAuthService();
+    final result = await containerWith(
+      fake,
+    ).read(authControllerProvider.notifier).updatePassword('newpass1');
+    expect(result, isA<Ok<void>>());
+    expect(fake.calls, contains('updatePassword'));
+  });
+
+  test('updatePassword maps a failure to Err', () async {
+    final fake = FakeAuthService()
+      ..updatePasswordError = const AuthFailure('weak');
+    final result = await containerWith(
+      fake,
+    ).read(authControllerProvider.notifier).updatePassword('newpass1');
+    expect(result, isA<Err<void>>());
+  });
 }

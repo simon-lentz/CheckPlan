@@ -40,10 +40,18 @@ class SupabaseAuthService implements AuthService {
     return email == null ? const SignedOut() : SignedIn(email);
   }
 
+  AuthSnapshot _mapState(AuthState state) =>
+      state.event == AuthChangeEvent.passwordRecovery
+      ? const PasswordRecovery()
+      : _snapshot(state.session);
+
   @override
   Stream<AuthSnapshot> get authStateChanges async* {
     yield _snapshot(_client.auth.currentSession);
-    yield* _client.auth.onAuthStateChange.map((s) => _snapshot(s.session));
+    // Map the recovery event to [PasswordRecovery] (not [SignedIn]) so the app
+    // can route to the set-new-password screen; every other event maps by
+    // session presence.
+    yield* _client.auth.onAuthStateChange.map(_mapState);
   }
 
   @override
@@ -69,8 +77,20 @@ class SupabaseAuthService implements AuthService {
   );
 
   @override
-  Future<void> resendConfirmation(String email) =>
-      _guard(() => _client.auth.resend(type: OtpType.signup, email: email));
+  Future<void> resendConfirmation(String email) => _guard(
+    // Carry the app deep-link, exactly as [signUp] does, so the resent
+    // confirmation link returns to the app rather than the project Site URL.
+    () => _client.auth.resend(
+      type: OtpType.signup,
+      email: email,
+      emailRedirectTo: _redirect,
+    ),
+  );
+
+  @override
+  Future<void> updatePassword(String newPassword) => _guard(
+    () => _client.auth.updateUser(UserAttributes(password: newPassword)),
+  );
 
   Future<void> _guard(Future<void> Function() call) async {
     try {

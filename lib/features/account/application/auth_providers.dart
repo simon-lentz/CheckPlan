@@ -50,4 +50,8 @@ class AuthController extends _$AuthController {
   /// Re-sends the confirmation email to [email].
   Future<Result<void>> resendConfirmation(String email) =>
       Result.guard(() => _service.resendConfirmation(email));
+
+  /// Sets [newPassword] on the active session, completing a password reset.
+  Future<Result<void>> updatePassword(String newPassword) =>
+      Result.guard(() => _service.updatePassword(newPassword));
 }

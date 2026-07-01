@@ -16,6 +16,31 @@ String? titleError(String raw) {
   return null;
 }
 
+/// The shortest password the account flows accept.
+///
+/// Matches Supabase's default minimum so a too-short password is rejected
+/// client-side (with immediate feedback) rather than by a rejected network
+/// round-trip. Keep this at or below the server's configured minimum — a higher
+/// client floor would reject passwords the server would accept.
+const int minPasswordLength = 6;
+
+/// Validates a new password and its confirmation for the set-password flows
+/// (sign-up and password-reset completion).
+///
+/// Returns null when [password] is at least [minPasswordLength] characters and
+/// [confirmation] matches it exactly; otherwise a human-readable reason.
+/// Requiring the confirmation guards against a typo in a field the user cannot
+/// read back — so setting a password is never a one-shot action. Passwords are
+/// compared verbatim (no trimming): whitespace is a legitimate password
+/// character, so an exact match is the only match.
+String? passwordPairError(String password, String confirmation) {
+  if (password.length < minPasswordLength) {
+    return 'Password must be at least $minPasswordLength characters';
+  }
+  if (password != confirmation) return 'Passwords do not match';
+  return null;
+}
+
 /// Thrown across the write boundary when a title fails [titleError].
 ///
 /// Carries the human-readable [message] from [titleError] so a controller can

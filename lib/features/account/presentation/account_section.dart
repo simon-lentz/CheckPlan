@@ -18,10 +18,15 @@ class AccountSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final snapshot = ref.watch(authStateProvider).value ?? const SignedOut();
-    return switch (snapshot) {
+    // Switch on the nullable value. `.value` is null only on the first frame,
+    // before the stream emits; show nothing then rather than defaulting to the
+    // signed-out tiles, which would flash "Not backed up" at a signed-in user.
+    // A PasswordRecovery session routes to the new-password screen, so the
+    // section shows nothing for it either.
+    return switch (ref.watch(authStateProvider).value) {
       SignedOut() => const _SignedOut(),
       SignedIn(:final email) => _SignedIn(email: email),
+      null || PasswordRecovery() => const SizedBox.shrink(),
     };
   }
 }

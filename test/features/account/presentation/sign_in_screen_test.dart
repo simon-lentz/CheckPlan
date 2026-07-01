@@ -54,4 +54,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Wrong email or password'), findsOneWidget);
   });
+
+  testWidgets('a successful sign-in as the nav root goes home, not stuck', (
+    tester,
+  ) async {
+    // Reached as the stack root (a future deep link / context.go), canPop is
+    // false: the screen must leave for home instead of stranding a disabled
+    // button on an already-signed-in form.
+    final fake = FakeAuthService();
+    final router = GoRouter(
+      initialLocation: '/sign-in',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (c, s) => const Scaffold(body: Text('home')),
+        ),
+        GoRoute(path: '/sign-in', builder: (c, s) => const SignInScreen()),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [authServiceProvider.overrideWithValue(fake)],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('email')), 'a@b.com');
+    await tester.enterText(find.byKey(const Key('password')), 'pw');
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SignInScreen), findsNothing);
+    expect(find.text('home'), findsOneWidget);
+  });
 }

@@ -29,6 +29,9 @@ class FakeAuthService implements AuthService {
   /// When set, [resendConfirmation] throws it.
   AuthFailure? resendError;
 
+  /// When set, [updatePassword] throws it.
+  AuthFailure? updatePasswordError;
+
   /// The commands invoked, in order, for assertions (e.g. `signIn:a@b.com`).
   final calls = <String>[];
 
@@ -73,5 +76,13 @@ class FakeAuthService implements AuthService {
   Future<void> resendConfirmation(String email) async {
     calls.add('resend:$email');
     if (resendError case final error?) throw error;
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    calls.add('updatePassword');
+    if (updatePasswordError case final error?) throw error;
+    // The real recovery session becomes a normal signed-in one here; a test
+    // that observes that transition drives it explicitly via [emit].
   }
 }

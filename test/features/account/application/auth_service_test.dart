@@ -10,6 +10,25 @@ void main() {
       expect(const SignedIn('a@b.com'), isNot(const SignedIn('c@d.com')));
       expect(const SignedIn('a@b.com'), isNot(const SignedOut()));
     });
+
+    test('PasswordRecovery is its own state, distinct from the others', () {
+      expect(const PasswordRecovery(), const PasswordRecovery());
+      expect(const PasswordRecovery(), isNot(const SignedOut()));
+      expect(const PasswordRecovery(), isNot(const SignedIn('a@b.com')));
+    });
+  });
+
+  group('authFailureMessage', () {
+    test('unwraps an AuthFailure message', () {
+      expect(
+        authFailureMessage(const AuthFailure('Wrong password'), 'fallback'),
+        'Wrong password',
+      );
+    });
+
+    test('falls back for any non-AuthFailure error', () {
+      expect(authFailureMessage(StateError('boom'), 'fallback'), 'fallback');
+    });
   });
 
   group('SignedOutAuthService', () {
@@ -32,6 +51,11 @@ void main() {
       );
       // Signing out with no session is a harmless no-op.
       await expectLater(service.signOut(), completes);
+      // Completing a reset is also unavailable in a local-only build.
+      await expectLater(
+        service.updatePassword('newpass1'),
+        throwsA(isA<AuthFailure>()),
+      );
     });
   });
 }

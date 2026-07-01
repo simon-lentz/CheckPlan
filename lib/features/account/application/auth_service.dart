@@ -38,6 +38,32 @@ final class SignedIn extends AuthSnapshot {
   int get hashCode => email.hashCode;
 }
 
+/// A password-recovery session is active — the user followed a reset deep link
+/// and must now choose a new password.
+///
+/// A distinct state (not [SignedIn]) so the app routes to the set-new-password
+/// screen instead of treating the recovery session as a completed sign-in.
+/// Once the new password is set the stream emits [SignedIn].
+final class PasswordRecovery extends AuthSnapshot {
+  /// Const so callers can pattern-match `const PasswordRecovery()`.
+  const PasswordRecovery();
+
+  @override
+  bool operator ==(Object other) => other is PasswordRecovery;
+
+  @override
+  int get hashCode => (PasswordRecovery).hashCode;
+}
+
+/// The user-safe message carried by [error] if it is an [AuthFailure], else
+/// [fallback].
+///
+/// Centralizes the domain-error-to-text mapping the account screens share, so a
+/// caught `Err`'s message is surfaced the same way everywhere and only the
+/// per-screen fallback copy differs.
+String authFailureMessage(Object error, String fallback) =>
+    error is AuthFailure ? error.message : fallback;
+
 /// A recoverable authentication failure carrying a **user-safe** [message].
 ///
 /// The Supabase implementation translates the SDK's error type into this, so no
@@ -80,6 +106,13 @@ abstract interface class AuthService {
 
   /// Re-sends the confirmation email to a not-yet-confirmed [email].
   Future<void> resendConfirmation(String email);
+
+  /// Sets [newPassword] on the account in the active session.
+  ///
+  /// Completes a password reset: after the recovery deep link establishes a
+  /// [PasswordRecovery] session, this writes the new password and the stream
+  /// emits [SignedIn].
+  Future<void> updatePassword(String newPassword);
 }
 
 /// The default [AuthService]: no account, no network — the permanent local-only
@@ -115,4 +148,7 @@ class SignedOutAuthService implements AuthService {
 
   @override
   Future<void> resendConfirmation(String email) async => throw _unavailable;
+
+  @override
+  Future<void> updatePassword(String newPassword) async => throw _unavailable;
 }

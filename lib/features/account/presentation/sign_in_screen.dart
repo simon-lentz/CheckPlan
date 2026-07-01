@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:checkplan/core/result.dart';
+import 'package:checkplan/core/widgets/form_error_text.dart';
 import 'package:checkplan/features/account/application/auth_providers.dart';
 import 'package:checkplan/features/account/application/auth_service.dart';
 import 'package:flutter/material.dart';
@@ -47,14 +48,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           obscureText: true,
           decoration: const InputDecoration(labelText: 'Password'),
         ),
-        if (_error case final message?)
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(
-              message,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
+        FormErrorText(_error),
         const SizedBox(height: 16),
         FilledButton(
           onPressed: _busy ? null : _submit,
@@ -83,11 +77,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     if (!mounted) return;
     switch (result) {
       case Ok():
-        if (context.canPop()) context.pop();
+        // Pop back to wherever sign-in was pushed from; if it is the stack root
+        // (a deep link / context.go) there is nothing to pop, so go home rather
+        // than leave the user stranded on a now-disabled form.
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/');
+        }
       case Err(:final error):
         setState(() {
           _busy = false;
-          _error = error is AuthFailure ? error.message : 'Could not sign in';
+          _error = authFailureMessage(error, 'Could not sign in');
         });
     }
   }

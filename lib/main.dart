@@ -54,11 +54,21 @@ Future<void> main() async {
 /// The real [SupabaseAuthService] when `SUPABASE_URL` +
 /// `SUPABASE_PUBLISHABLE_KEY` are supplied via `--dart-define`; otherwise the
 /// local-only [SignedOutAuthService] (no Supabase init, no network).
+///
+/// A failed init (a corrupt persisted session, a secure-storage read error, a
+/// platform-channel failure) must not block launch — the on-device checklists
+/// are local-first and must stay reachable — so it falls back to local-only,
+/// exactly as the theme read below tolerates a failed database open. Cloud
+/// backup is then unavailable until the next successful launch.
 Future<AuthService> _resolveAuthService() async {
   const url = String.fromEnvironment('SUPABASE_URL');
   const key = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
   if (url.isEmpty || key.isEmpty) return const SignedOutAuthService();
-  return SupabaseAuthService.initialize(url: url, publishableKey: key);
+  try {
+    return await SupabaseAuthService.initialize(url: url, publishableKey: key);
+  } on Exception catch (_) {
+    return const SignedOutAuthService();
+  }
 }
 
 // coverage:ignore-end
