@@ -46,18 +46,23 @@ void main() {
     expect(await dao.watchForTask(task).first, isEmpty);
   });
 
-  test('rename trims, validates, and updates the title', () async {
+  test('edit trims the title, validates, and updates title + notes', () async {
     final task = await seedTask();
     final id = ((await controller().add(task, 'old')) as Ok<int>).value;
-    expect(await controller().rename(id, '  new  '), isA<Ok<void>>());
+    expect(
+      await controller().edit(id, title: '  new  ', notes: 'a note'),
+      isA<Ok<void>>(),
+    );
     final dao = container.read(subtaskDaoProvider);
-    expect((await dao.watchForTask(task).first).single.title, 'new');
+    final row = (await dao.watchForTask(task).first).single;
+    expect(row.title, 'new'); // guardTitle trims the title
+    expect(row.notes, 'a note');
   });
 
-  test('rename rejects a blank title', () async {
+  test('edit rejects a blank title', () async {
     final task = await seedTask();
     final id = ((await controller().add(task, 'x')) as Ok<int>).value;
-    expect(await controller().rename(id, '   '), isA<Err<void>>());
+    expect(await controller().edit(id, title: '   '), isA<Err<void>>());
   });
 
   test('reorder changes the order', () async {

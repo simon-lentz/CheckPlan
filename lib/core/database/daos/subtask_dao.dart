@@ -67,11 +67,14 @@ class SubtaskDao extends DatabaseAccessor<AppDatabase>
     await _reconcileParentDone(row.taskId, now);
   });
 
-  /// Renames the subtask with the given id.
-  Future<int> rename(int id, String title) =>
+  /// Sets the subtask's title and notes from the editor draft — a full write of
+  /// the editable fields. Passing `notes: null` clears the notes. Title/notes do
+  /// not affect completion, so no parent reconcile is needed.
+  Future<int> edit(int id, {required String title, String? notes}) =>
       (update(subtasks)..where((s) => s.id.equals(id))).write(
         SubtasksCompanion(
           title: Value(title),
+          notes: Value(notes),
           updatedAt: Value(DateTime.timestamp()),
         ),
       );

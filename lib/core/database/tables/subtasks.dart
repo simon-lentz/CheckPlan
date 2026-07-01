@@ -1,8 +1,8 @@
 import 'package:checkplan/core/database/tables/tasks.dart';
 import 'package:drift/drift.dart';
 
-/// A lean child item of a single task: title and done-state only (no notes or
-/// due date).
+/// A lean child item of a single task: title, done-state, and optional notes
+/// (no due date).
 ///
 /// DateTime values are stored as ISO-8601 text.
 ///
@@ -21,6 +21,9 @@ class Subtasks extends Table {
 
   /// Subtask completion flag, defaults to false.
   BoolColumn get isDone => boolean().withDefault(const Constant(false))();
+
+  /// Optional notes.
+  TextColumn get notes => text().nullable()();
 
   /// Fractional sort key within the owning task (see core/database/rank.dart).
   TextColumn get rank => text()();

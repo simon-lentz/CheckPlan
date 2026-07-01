@@ -26,7 +26,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   /// Schema migrations: see `drift_schemas/README.md`.
   @override
@@ -47,7 +47,11 @@ class AppDatabase extends _$AppDatabase {
         await m.runMigrationSteps(
           from: from,
           to: to,
-          steps: migrationSteps(from1To2: _from1To2, from2To3: _from2To3),
+          steps: migrationSteps(
+            from1To2: _from1To2,
+            from2To3: _from2To3,
+            from3To4: _from3To4,
+          ),
         );
         final violations = await customSelect('PRAGMA foreign_key_check').get();
         checkNoForeignKeyViolations(
@@ -100,6 +104,12 @@ class AppDatabase extends _$AppDatabase {
   // transform, so createTable is the whole step.
   Future<void> _from2To3(Migrator m, Schema3 schema) async {
     await m.createTable(schema.settings);
+  }
+
+  // v3 -> v4: add the nullable `notes` column to subtasks. Additive — existing
+  // rows get NULL notes, so addColumn is the whole step.
+  Future<void> _from3To4(Migrator m, Schema4 schema) async {
+    await m.addColumn(schema.subtasks, schema.subtasks.notes);
   }
 
   // Converts one table's `position` column to a backfilled `rank`. Order is

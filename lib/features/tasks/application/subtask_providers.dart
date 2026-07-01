@@ -54,11 +54,11 @@ class SubtaskController extends _$SubtaskController {
     await _dao.deleteById(id);
   });
 
-  /// Renames subtask [id] to the (trimmed) [title]. Rejects an empty or
-  /// over-length [title].
-  Future<Result<void>> rename(int id, String title) =>
+  /// Sets subtask [id]'s title and notes from the editor draft. Rejects an
+  /// empty or over-length [title]; a null [notes] clears it.
+  Future<Result<void>> edit(int id, {required String title, String? notes}) =>
       guardTitle(title, (title) async {
-        await _dao.rename(id, title);
+        await _dao.edit(id, title: title, notes: notes);
       });
 
   /// Re-ranks the moved subtask between its new neighbours (null = list end).

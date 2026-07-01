@@ -146,7 +146,7 @@ void main() {
     expect(subtasks.single.title.length, maxTitleLength);
   });
 
-  testWidgets('tapping a subtask renames it via the shared dialog', (
+  testWidgets('tapping a subtask opens the editor and saves title + notes', (
     tester,
   ) async {
     final db = memoryDb();
@@ -161,11 +161,15 @@ void main() {
     await tester.tap(find.text('old'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Title'), 'new');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Notes'),
+      'note text',
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
 
     expect(find.text('new'), findsOneWidget);
-    expect(find.text('old'), findsNothing);
+    expect(find.text('note text'), findsOneWidget); // notes preview on the tile
   });
 
   testWidgets('dragging a subtask grip persists the new order', (tester) async {
@@ -189,7 +193,7 @@ void main() {
     expect(order, [b, a]);
   });
 
-  testWidgets('tapping the subtask drag grip does not open the rename dialog', (
+  testWidgets('tapping the subtask drag grip does not open the editor', (
     tester,
   ) async {
     final db = memoryDb();
@@ -202,7 +206,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // The grip claims drags, not taps; a bare tap on it must not fall through
-    // to the row's onTap (rename), so the rename dialog must not appear.
+    // to the row's onTap (edit), so the editor sheet must not appear.
     await tester.tap(find.byIcon(Icons.drag_indicator));
     await tester.pumpAndSettle();
 

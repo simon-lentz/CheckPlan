@@ -16,6 +16,7 @@ import 'package:checkplan/features/checklists/application/checklist_providers.da
 import 'package:checkplan/features/tasks/application/subtask_providers.dart';
 import 'package:checkplan/features/tasks/application/task_providers.dart';
 import 'package:checkplan/features/tasks/presentation/task_actions.dart';
+import 'package:checkplan/features/tasks/presentation/widgets/subtask_editor_sheet.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/subtask_tile.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/task_editor_sheet.dart';
 import 'package:checkplan/features/tasks/presentation/widgets/task_tile.dart';
@@ -359,7 +360,7 @@ class _SubtaskSectionState extends ConsumerState<_SubtaskSection>
                 subtask: subtask,
                 onToggleDone: (isDone) =>
                     _toggleSub(subtask.id, isDone: isDone),
-                onRename: () => _renameSub(subtask.id, subtask.title),
+                onEdit: () => _editSub(subtask),
                 onDelete: () => _deleteSub(subtask.id),
                 dragHandle: ReorderableDragStartListener(
                   index: index,
@@ -407,20 +408,15 @@ class _SubtaskSectionState extends ConsumerState<_SubtaskSection>
     }
   }
 
-  Future<void> _renameSub(int id, String currentTitle) async {
-    final title = await showNameDialog(
-      context,
-      title: 'Rename subtask',
-      submitLabel: 'Save',
-      initialValue: currentTitle,
-    );
-    if (title == null || !mounted) return;
+  Future<void> _editSub(Subtask subtask) async {
+    final draft = await showSubtaskEditorSheet(context, subtask: subtask);
+    if (draft == null || !mounted) return;
     final result = await ref
         .read(subtaskControllerProvider.notifier)
-        .rename(id, title);
+        .edit(subtask.id, title: draft.title, notes: draft.notes);
     if (!mounted) return;
     if (result case Err()) {
-      showErrorSnackBar(context, 'Could not rename the subtask');
+      showErrorSnackBar(context, 'Could not save the subtask');
     }
   }
 

@@ -120,10 +120,15 @@ class _TodayTaskTileState extends State<TodayTaskTile>
                           : 'Show subtasks',
                       onPressed: widget.onToggleExpanded,
                     ),
-                    LabeledCheckbox(
-                      label: toggleDoneLabel(entry.task.title),
-                      value: entry.task.isDone,
-                      onChanged: null,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      excludeFromSemantics: true,
+                      onTap: widget.onToggleExpanded,
+                      child: LabeledCheckbox(
+                        label: toggleDoneLabel(entry.task.title),
+                        value: entry.task.isDone,
+                        onChanged: null,
+                      ),
                     ),
                   ],
                 )

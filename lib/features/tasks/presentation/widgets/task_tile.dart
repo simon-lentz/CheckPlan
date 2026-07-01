@@ -63,19 +63,33 @@ class TaskTile extends StatelessWidget {
             tooltip: expanded ? 'Hide subtasks' : 'Show subtasks',
             onPressed: onToggleExpanded,
           ),
-          LabeledCheckbox(
-            label: toggleDoneLabel(view.task.title),
-            value: view.task.isDone,
-            // With subtasks, completion is derived from them (done ⟺ all done);
-            // show that state read-only so the checkbox can't contradict the
-            // progress hint.
-            onChanged: total > 0 ? null : onToggleDone,
-          ),
+          _checkbox(total),
         ],
       ),
       title: Text(view.task.title),
       subtitle: _subtitle(status, notes),
       trailing: _trailing(done, total),
+    );
+  }
+
+  // The done checkbox. With no subtasks it toggles completion. With subtasks
+  // completion is derived, so the box is read-only — but a tap still reveals
+  // the subtasks (where completion happens) instead of doing nothing. The
+  // GestureDetector is non-visual (goldens unchanged) and opaque so the tap
+  // lands despite the disabled checkbox; excludeFromSemantics keeps the a11y
+  // node a plain disabled checkbox (screen readers expand via the chevron).
+  Widget _checkbox(int total) {
+    final box = LabeledCheckbox(
+      label: toggleDoneLabel(view.task.title),
+      value: view.task.isDone,
+      onChanged: total > 0 ? null : onToggleDone,
+    );
+    if (total == 0) return box;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      excludeFromSemantics: true,
+      onTap: onToggleExpanded,
+      child: box,
     );
   }
 

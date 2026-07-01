@@ -45,7 +45,11 @@ class _FailingSubtaskController extends SubtaskController {
   @override
   Future<Result<void>> delete(int id) async => _boom();
   @override
-  Future<Result<void>> rename(int id, String title) async => _boom();
+  Future<Result<void>> edit(
+    int id, {
+    required String title,
+    String? notes,
+  }) async => _boom();
   @override
   Future<Result<void>> reorder(
     int movedId,
@@ -214,7 +218,7 @@ void main() {
     expect(find.text('Could not delete the subtask'), findsOneWidget);
   });
 
-  testWidgets('rename-subtask failure shows an error', (tester) async {
+  testWidgets('edit-subtask failure shows an error', (tester) async {
     final db = memoryDb();
     final list = await db.checklistDao.create('List');
     final taskId = await db.taskDao.add(list, 'Task');
@@ -229,12 +233,12 @@ void main() {
     );
     await tester.tap(find.byIcon(Icons.expand_more));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Step')); // open the rename dialog
+    await tester.tap(find.text('Step')); // open the editor
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Renamed');
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
-    expect(find.text('Could not rename the subtask'), findsOneWidget);
+    expect(find.text('Could not save the subtask'), findsOneWidget);
   });
 
   testWidgets('reorder-subtask failure shows an error', (tester) async {

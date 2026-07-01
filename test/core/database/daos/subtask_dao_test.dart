@@ -124,12 +124,19 @@ void main() {
     expect(await db.select(db.subtasks).get(), isEmpty);
   });
 
-  test('rename changes the subtask title', () async {
+  test('edit updates title and notes, then clears notes with null', () async {
     final task = await seedTask();
     final id = await subtasks.add(task, 'old');
-    await subtasks.rename(id, 'new');
 
-    expect((await subtasks.watchForTask(task).first).single.title, 'new');
+    await subtasks.edit(id, title: 'new', notes: 'some notes');
+    var row = (await subtasks.watchForTask(task).first).single;
+    expect(row.title, 'new');
+    expect(row.notes, 'some notes');
+
+    // Omitting notes passes null: edit is a full write, so this clears them.
+    await subtasks.edit(id, title: 'new2');
+    row = (await subtasks.watchForTask(task).first).single;
+    expect(row.notes, isNull);
   });
 
   test('deleteById removes only the targeted subtask', () async {

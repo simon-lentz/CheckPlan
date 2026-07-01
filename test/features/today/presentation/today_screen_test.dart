@@ -162,6 +162,25 @@ void main() {
     expect(find.text('Pack'), findsNothing); // all done -> left Today
   });
 
+  testWidgets('tapping the read-only checkbox expands subtasks in Today', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('Errands');
+    final id = await db.taskDao.add(list, 'Pack');
+    await db.taskDao.setDueDate(id, today);
+    await db.subtaskDao.add(id, 'shirts');
+    await pumpTodayScreen(tester, db: db, today: today);
+
+    expect(find.text('shirts'), findsNothing); // collapsed
+
+    // The task's own (read-only) checkbox is the only one while collapsed.
+    await tester.tap(find.byType(Checkbox).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('shirts'), findsOneWidget); // tap revealed the subtasks
+  });
+
   testWidgets('a failed completion keeps the Today row', (tester) async {
     final db = memoryDb();
     final list = await db.checklistDao.create('Errands');

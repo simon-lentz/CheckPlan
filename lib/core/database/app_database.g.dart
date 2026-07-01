@@ -1109,6 +1109,15 @@ class $SubtasksTable extends Subtasks with TableInfo<$SubtasksTable, Subtask> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _rankMeta = const VerificationMeta('rank');
   @override
   late final GeneratedColumn<String> rank = GeneratedColumn<String>(
@@ -1146,6 +1155,7 @@ class $SubtasksTable extends Subtasks with TableInfo<$SubtasksTable, Subtask> {
     taskId,
     title,
     isDone,
+    notes,
     rank,
     createdAt,
     updatedAt,
@@ -1185,6 +1195,12 @@ class $SubtasksTable extends Subtasks with TableInfo<$SubtasksTable, Subtask> {
       context.handle(
         _isDoneMeta,
         isDone.isAcceptableOrUnknown(data['is_done']!, _isDoneMeta),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
     if (data.containsKey('rank')) {
@@ -1236,6 +1252,10 @@ class $SubtasksTable extends Subtasks with TableInfo<$SubtasksTable, Subtask> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_done'],
       )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
       rank: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}rank'],
@@ -1270,6 +1290,9 @@ class Subtask extends DataClass implements Insertable<Subtask> {
   /// Subtask completion flag, defaults to false.
   final bool isDone;
 
+  /// Optional notes.
+  final String? notes;
+
   /// Fractional sort key within the owning task (see core/database/rank.dart).
   final String rank;
 
@@ -1283,6 +1306,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
     required this.taskId,
     required this.title,
     required this.isDone,
+    this.notes,
     required this.rank,
     required this.createdAt,
     required this.updatedAt,
@@ -1294,6 +1318,9 @@ class Subtask extends DataClass implements Insertable<Subtask> {
     map['task_id'] = Variable<int>(taskId);
     map['title'] = Variable<String>(title);
     map['is_done'] = Variable<bool>(isDone);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
     map['rank'] = Variable<String>(rank);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -1306,6 +1333,9 @@ class Subtask extends DataClass implements Insertable<Subtask> {
       taskId: Value(taskId),
       title: Value(title),
       isDone: Value(isDone),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
       rank: Value(rank),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
@@ -1322,6 +1352,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
       taskId: serializer.fromJson<int>(json['taskId']),
       title: serializer.fromJson<String>(json['title']),
       isDone: serializer.fromJson<bool>(json['isDone']),
+      notes: serializer.fromJson<String?>(json['notes']),
       rank: serializer.fromJson<String>(json['rank']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -1335,6 +1366,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
       'taskId': serializer.toJson<int>(taskId),
       'title': serializer.toJson<String>(title),
       'isDone': serializer.toJson<bool>(isDone),
+      'notes': serializer.toJson<String?>(notes),
       'rank': serializer.toJson<String>(rank),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -1346,6 +1378,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
     int? taskId,
     String? title,
     bool? isDone,
+    Value<String?> notes = const Value.absent(),
     String? rank,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -1354,6 +1387,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
     taskId: taskId ?? this.taskId,
     title: title ?? this.title,
     isDone: isDone ?? this.isDone,
+    notes: notes.present ? notes.value : this.notes,
     rank: rank ?? this.rank,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
@@ -1364,6 +1398,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
       taskId: data.taskId.present ? data.taskId.value : this.taskId,
       title: data.title.present ? data.title.value : this.title,
       isDone: data.isDone.present ? data.isDone.value : this.isDone,
+      notes: data.notes.present ? data.notes.value : this.notes,
       rank: data.rank.present ? data.rank.value : this.rank,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1377,6 +1412,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
           ..write('taskId: $taskId, ')
           ..write('title: $title, ')
           ..write('isDone: $isDone, ')
+          ..write('notes: $notes, ')
           ..write('rank: $rank, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -1386,7 +1422,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
 
   @override
   int get hashCode =>
-      Object.hash(id, taskId, title, isDone, rank, createdAt, updatedAt);
+      Object.hash(id, taskId, title, isDone, notes, rank, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1395,6 +1431,7 @@ class Subtask extends DataClass implements Insertable<Subtask> {
           other.taskId == this.taskId &&
           other.title == this.title &&
           other.isDone == this.isDone &&
+          other.notes == this.notes &&
           other.rank == this.rank &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -1405,6 +1442,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
   final Value<int> taskId;
   final Value<String> title;
   final Value<bool> isDone;
+  final Value<String?> notes;
   final Value<String> rank;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -1413,6 +1451,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
     this.taskId = const Value.absent(),
     this.title = const Value.absent(),
     this.isDone = const Value.absent(),
+    this.notes = const Value.absent(),
     this.rank = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -1422,6 +1461,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
     required int taskId,
     required String title,
     this.isDone = const Value.absent(),
+    this.notes = const Value.absent(),
     required String rank,
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -1435,6 +1475,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
     Expression<int>? taskId,
     Expression<String>? title,
     Expression<bool>? isDone,
+    Expression<String>? notes,
     Expression<String>? rank,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -1444,6 +1485,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
       if (taskId != null) 'task_id': taskId,
       if (title != null) 'title': title,
       if (isDone != null) 'is_done': isDone,
+      if (notes != null) 'notes': notes,
       if (rank != null) 'rank': rank,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -1455,6 +1497,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
     Value<int>? taskId,
     Value<String>? title,
     Value<bool>? isDone,
+    Value<String?>? notes,
     Value<String>? rank,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -1464,6 +1507,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
       taskId: taskId ?? this.taskId,
       title: title ?? this.title,
       isDone: isDone ?? this.isDone,
+      notes: notes ?? this.notes,
       rank: rank ?? this.rank,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1485,6 +1529,9 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
     if (isDone.present) {
       map['is_done'] = Variable<bool>(isDone.value);
     }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
     if (rank.present) {
       map['rank'] = Variable<String>(rank.value);
     }
@@ -1504,6 +1551,7 @@ class SubtasksCompanion extends UpdateCompanion<Subtask> {
           ..write('taskId: $taskId, ')
           ..write('title: $title, ')
           ..write('isDone: $isDone, ')
+          ..write('notes: $notes, ')
           ..write('rank: $rank, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -2591,6 +2639,7 @@ typedef $$SubtasksTableCreateCompanionBuilder =
       required int taskId,
       required String title,
       Value<bool> isDone,
+      Value<String?> notes,
       required String rank,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -2601,6 +2650,7 @@ typedef $$SubtasksTableUpdateCompanionBuilder =
       Value<int> taskId,
       Value<String> title,
       Value<bool> isDone,
+      Value<String?> notes,
       Value<String> rank,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
@@ -2649,6 +2699,11 @@ class $$SubtasksTableFilterComposer
 
   ColumnFilters<bool> get isDone => $composableBuilder(
     column: $table.isDone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2715,6 +2770,11 @@ class $$SubtasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get rank => $composableBuilder(
     column: $table.rank,
     builder: (column) => ColumnOrderings(column),
@@ -2771,6 +2831,9 @@ class $$SubtasksTableAnnotationComposer
 
   GeneratedColumn<bool> get isDone =>
       $composableBuilder(column: $table.isDone, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
 
   GeneratedColumn<String> get rank =>
       $composableBuilder(column: $table.rank, builder: (column) => column);
@@ -2837,6 +2900,7 @@ class $$SubtasksTableTableManager
                 Value<int> taskId = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<bool> isDone = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 Value<String> rank = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -2845,6 +2909,7 @@ class $$SubtasksTableTableManager
                 taskId: taskId,
                 title: title,
                 isDone: isDone,
+                notes: notes,
                 rank: rank,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -2855,6 +2920,7 @@ class $$SubtasksTableTableManager
                 required int taskId,
                 required String title,
                 Value<bool> isDone = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
                 required String rank,
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -2863,6 +2929,7 @@ class $$SubtasksTableTableManager
                 taskId: taskId,
                 title: title,
                 isDone: isDone,
+                notes: notes,
                 rank: rank,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

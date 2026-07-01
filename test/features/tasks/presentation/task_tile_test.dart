@@ -86,6 +86,38 @@ void main() {
     expect(boxes[1].onChanged, isNotNull); // (0,0): manual -> enabled
   });
 
+  testWidgets('tapping the read-only checkbox toggles expansion, not done', (
+    tester,
+  ) async {
+    final db = memoryDb();
+    final list = await db.checklistDao.create('L');
+    await db.taskDao.add(list, 'Task');
+    final task = await db.readSingleTask();
+
+    var expandToggles = 0;
+    var doneToggles = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TaskTile(
+            today: today,
+            expanded: false,
+            onToggleExpanded: () => expandToggles++,
+            onEdit: () {},
+            view: TaskView(task: task, subtaskProgress: (1, 2)),
+            onToggleDone: (_) => doneToggles++,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+
+    expect(expandToggles, 1); // the tap expanded the subtasks
+    expect(doneToggles, 0); // and did not attempt completion
+  });
+
   testWidgets('shows a due-date chip when the task has a due date', (
     tester,
   ) async {

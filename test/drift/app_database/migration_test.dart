@@ -1,11 +1,14 @@
 import 'package:checkplan/core/database/app_database.dart';
-import 'package:drift/drift.dart';
+// hide isNull: drift and matcher both export it; this file wants the matcher.
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'generated/schema.dart';
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
+import 'generated/schema_v3.dart' as v3;
+import 'generated/schema_v4.dart' as v4;
 
 void main() {
   // The verifier spins up several short-lived databases alongside AppDatabase.
@@ -37,6 +40,65 @@ void main() {
     final db = AppDatabase(connection);
     await verifier.migrateAndValidate(db, 3);
     await db.close();
+  });
+
+  test('migrating v3 -> v4 produces the expected schema', () async {
+    final connection = await verifier.startAt(3);
+    final db = AppDatabase(connection);
+    await verifier.migrateAndValidate(db, 4);
+    await db.close();
+  });
+
+  test('v3 -> v4 adds notes as null and preserves existing subtasks', () async {
+    const ts = '2026-01-01T00:00:00.000Z';
+    await verifier.testWithDataIntegrity(
+      oldVersion: 3,
+      newVersion: 4,
+      createOld: v3.DatabaseAtV3.new,
+      createNew: v4.DatabaseAtV4.new,
+      openTestedDatabase: AppDatabase.new,
+      // FK-valid parent chain so the migration's foreign_key_check stays clean.
+      createItems: (batch, oldDb) {
+        batch
+          ..insert(
+            oldDb.checklists,
+            v3.ChecklistsCompanion.insert(
+              id: const Value(1),
+              title: 'L',
+              rank: 'a0',
+              createdAt: ts,
+              updatedAt: ts,
+            ),
+          )
+          ..insert(
+            oldDb.tasks,
+            v3.TasksCompanion.insert(
+              id: const Value(1),
+              checklistId: 1,
+              title: 'T',
+              rank: 'a0',
+              createdAt: ts,
+              updatedAt: ts,
+            ),
+          )
+          ..insert(
+            oldDb.subtasks,
+            v3.SubtasksCompanion.insert(
+              id: const Value(1),
+              taskId: 1,
+              title: 'S',
+              rank: 'a0',
+              createdAt: ts,
+              updatedAt: ts,
+            ),
+          );
+      },
+      validateItems: (newDb) async {
+        final row = (await newDb.select(newDb.subtasks).get()).single;
+        expect(row.title, 'S');
+        expect(row.notes, isNull);
+      },
+    );
   });
 
   test("v1 -> v2 backfills rank from each scope's position order", () async {
